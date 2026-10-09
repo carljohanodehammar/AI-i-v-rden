@@ -1261,8 +1261,8 @@ document.addEventListener("keydown",e=>{if(e.target.matches("textarea,input:not(
  if(!body.classList.contains("present")){if(e.key==="p"||e.key==="P")setMode(true);return;}
  const st=STEPPERS[slides[cur].id];
  if(e.key===" "){e.preventDefault();go(cur+1);}
- else if(["ArrowRight","PageDown"].includes(e.key)){e.preventDefault();if(!(st&&st.next())&&!qStep(slides[cur],1))go(cur+1);}
- else if(["ArrowLeft","PageUp"].includes(e.key)){e.preventDefault();if(!(st&&st.prev())&&!qStep(slides[cur],-1))go(cur-1);}
+ else if(["ArrowRight","ArrowDown","PageDown"].includes(e.key)){e.preventDefault();if(!(st&&st.next())&&!qStep(slides[cur],1))go(cur+1);}
+ else if(["ArrowLeft","ArrowUp","PageUp"].includes(e.key)){e.preventDefault();if(!(st&&st.prev())&&!qStep(slides[cur],-1))go(cur-1);}
  else if(e.key==="Home")go(0);else if(e.key==="End")go(slides.length-1);
  else if(e.key==="Escape")setMode(false);else if(e.key==="n"||e.key==="N")notesBtn.click();});
 /* fit active slide to the screen */
