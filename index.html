@@ -1,0 +1,1368 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AI i vården - fördelar och fällor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..700&family=Noto+Sans:ital,wght@0,400..700;1,400..700&family=IBM+Plex+Mono:wght@400&display=swap">
+<style>
+/* Layout: lecture plates. Read mode stacks every plate with sources open; present mode shows one plate per screen.
+   A millimetre ECG grid marks part openers only. */
+:root{
+  --bg:#edf1f5; --plate:#ffffff; --ink:#121a24; --muted:#536071; --rule:#d2dae3;
+  --accent:#0b5fa5; --accent-ink:#ffffff; --signal:#a63d79; --grid:#ecdbe6; --grid-strong:#dcbcd0;
+  --soft:#e7edf4; --hl:#f2d4e5; --chip-se:#0b5fa5; --chip-eu:#a63d79; --chip-nord:#00796b; --chip-int:#536071;
+  --s1:#0072b2; --s2:#cc79a7; --s3:#0072b2; --other:#b4bfcb;
+  --good:#00796b; --warn:#8a6d00;
+  --f-display:"Playfair Display",Georgia,"Times New Roman",serif;
+  --f-body:"Noto Sans",Arial,Helvetica,sans-serif;
+  --f-mono:"Noto Sans",Arial,Helvetica,sans-serif; /* small labels */
+  --f-code:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0b1017; --plate:#131b25; --ink:#e7edf4; --muted:#9aa7b7; --rule:#26323f;
+  --accent:#62adef; --accent-ink:#06121f; --signal:#e38bbd; --grid:#251c27; --grid-strong:#3d2b40;
+  --soft:#1a2431; --hl:#4a2a40; --chip-se:#62adef; --chip-eu:#e38bbd; --chip-nord:#4fc3b0; --chip-int:#9aa7b7;
+  --s1:#3b8fd6; --s2:#c86aa0; --s3:#3b8fd6; --other:#3a4655; --good:#4fc3b0; --warn:#e2c35a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b1017; --plate:#131b25; --ink:#e7edf4; --muted:#9aa7b7; --rule:#26323f;
+  --accent:#62adef; --accent-ink:#06121f; --signal:#e38bbd; --grid:#251c27; --grid-strong:#3d2b40;
+  --soft:#1a2431; --hl:#4a2a40; --chip-se:#62adef; --chip-eu:#e38bbd; --chip-nord:#4fc3b0; --chip-int:#9aa7b7;
+  --s1:#3b8fd6; --s2:#c86aa0; --s3:#3b8fd6; --other:#3a4655; --good:#4fc3b0; --warn:#e2c35a; color-scheme:dark}
+
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--f-body);font-size:17px;line-height:1.5;padding-inline:16px;padding-block:0 96px}
+a{color:var(--accent);text-underline-offset:2px}
+a:focus-visible,button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.15}
+h3{font-family:var(--f-body);font-weight:700}
+p{margin:0}
+.mono{font-family:var(--f-mono)}
+
+/* top bar */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;
+  max-width:1180px;margin:0 auto;padding:10px 0;background:var(--bg);border-bottom:1px solid var(--rule)}
+.bar .brand{font-family:var(--f-display);font-weight:800;font-size:15px;letter-spacing:.02em}
+.bar .brand span{color:var(--muted);font-weight:500;font-family:var(--f-body);font-size:14px}
+.bar .ctrls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{font:inherit;cursor:pointer}
+.btn{border:1px solid var(--rule);background:var(--plate);color:var(--ink);border-radius:999px;padding:6px 14px;font-size:14px;font-weight:600}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+/* deck */
+.deck{max-width:1180px;margin:24px auto 0;display:flex;flex-direction:column;gap:28px}
+.slide{position:relative;background:var(--plate);border:1px solid var(--rule);border-radius:6px;padding:clamp(20px,4vw,48px);
+  display:flex;flex-direction:column;gap:22px;min-width:0;scroll-margin-top:72px}
+.slide-head{display:flex;justify-content:space-between;gap:12px;align-items:baseline;font-family:var(--f-mono);font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--rule);padding-bottom:10px}
+.slide h2{font-size:clamp(28px,3.6vw,46px);font-weight:800;letter-spacing:-.01em}
+.slide h3{font-size:clamp(19px,1.8vw,23px);font-weight:700;}
+.lede{font-size:clamp(18px,1.6vw,21px);max-width:62ch;color:var(--ink)}
+.body{max-width:68ch}
+.body p+p{margin-top:.7em}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:20px 32px;align-items:start}
+.cols>*{min-width:0}
+ul.clean{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:.45em}
+.kicker{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.note-box{border-left:3px solid var(--signal);padding:10px 14px;background:var(--soft);border-radius:0 4px 4px 0;max-width:70ch}
+.note-box.calm{border-left-color:var(--accent)}
+.big{font-family:var(--f-display);font-weight:800;font-size:clamp(40px,6vw,76px);line-height:1;font-variant-numeric:tabular-nums}
+.stat{display:flex;flex-direction:column;gap:6px}
+.stat .lbl{color:var(--muted);font-size:15px;max-width:30ch}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:20px 28px}
+
+/* part openers with ECG grid */
+.slide.part{background-color:var(--plate);
+  background-image:linear-gradient(var(--grid-strong) 1px,transparent 1px),linear-gradient(90deg,var(--grid-strong) 1px,transparent 1px),
+  linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:40px 40px,40px 40px,8px 8px,8px 8px;min-height:340px;justify-content:flex-end}
+.slide.part .partno{font-family:var(--f-mono);font-size:14px;color:var(--signal);letter-spacing:.1em;text-transform:uppercase}
+.slide.part h2{font-size:clamp(40px,6.4vw,84px);background:var(--plate);display:inline;box-decoration-break:clone;-webkit-box-decoration-break:clone;padding:0 .12em}
+.slide.part .lede{background:var(--plate);padding:6px 8px;max-width:52ch}
+.ecg{width:100%;height:60px;color:var(--signal)}
+
+/* title slide */
+.slide.title{min-height:440px;justify-content:space-between}
+.slide.title h1{font-size:clamp(46px,8vw,104px);font-weight:800;letter-spacing:-.02em}
+.slide.title h1 em{font-style:italic;color:var(--signal);font-weight:600;display:block;font-size:.5em;letter-spacing:0;margin-top:.15em}
+.meta-row{display:flex;flex-wrap:wrap;gap:8px 28px;font-size:15px;color:var(--muted)}
+.meta-row strong{color:var(--ink)}
+
+/* chips */
+.chip{display:inline-flex;align-items:center;font-family:var(--f-mono);font-size:11px;font-weight:500;letter-spacing:.06em;border:1px solid currentColor;border-radius:3px;padding:1px 5px;line-height:1.4;white-space:nowrap;vertical-align:1px}
+.chip.SE{color:var(--chip-se)} .chip.EU{color:var(--chip-eu)} .chip.NORD{color:var(--chip-nord)}
+.chip.INT,.chip.UK,.chip.USA,.chip.PL,.chip.DE{color:var(--chip-int)}
+.chip.kind{color:var(--muted)}
+
+/* sources footer */
+.src{border-top:1px dashed var(--rule);padding-top:12px;font-size:13.5px;color:var(--muted)}
+.src summary{cursor:pointer;font-family:var(--f-mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.src ol{margin:8px 0 0;padding-left:1.4em;display:flex;flex-direction:column;gap:4px}
+.src li{overflow-wrap:anywhere}
+.notes{font-size:15px;color:var(--muted);border-top:1px solid var(--rule);padding-top:10px}
+.notes summary{cursor:pointer;font-family:var(--f-mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.notes div{margin-top:6px;max-width:72ch}
+
+/* questions */
+.questions{display:flex;flex-direction:column;gap:18px;counter-reset:q}
+.questions li{list-style:none;font-family:var(--f-display);font-weight:600;font-size:clamp(20px,2.2vw,28px);line-height:1.2;padding-left:2.2em;position:relative;max-width:40ch}
+.questions li::before{counter-increment:q;content:counter(q);position:absolute;left:0;top:.05em;font-family:var(--f-mono);font-size:.6em;color:var(--signal);border:1px solid currentColor;border-radius:50%;width:1.7em;height:1.7em;display:grid;place-items:center}
+.questions{padding:0;margin:0}
+
+/* quiz */
+.quiz{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:16px}
+.qcard{border:1px solid var(--rule);border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.qcard .prompt{font-size:14.5px;color:var(--muted);font-style:italic}
+.qcard blockquote{margin:0;font-size:17px}
+.reveal-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}
+.verdict{font-weight:700;color:var(--signal)}
+
+/* timeline */
+.filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.filters .lbl{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin-right:4px;text-transform:uppercase;letter-spacing:.06em}
+.tl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.tl li{display:grid;grid-template-columns:5.2em 1fr;gap:4px 16px;padding:10px 0;border-top:1px solid var(--rule)}
+.tl li[hidden]{display:none}
+.tl .yr{font-family:var(--f-display);font-weight:800;font-size:20px;font-variant-numeric:tabular-nums}
+.tl .yr.future{color:var(--muted)}
+.tl .txt{min-width:0}
+.tl .txt b{font-weight:700}
+.tl .tags{display:inline-flex;gap:4px;margin-left:6px}
+.tl-wrap{max-height:none}
+
+/* charts */
+.chart{width:100%;min-width:0}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.chart text{fill:var(--ink);font-family:var(--f-body);font-size:15px}
+.chart .axis text,.chart text.muted{fill:var(--muted);font-size:13px}
+.chart .gridline{stroke:var(--rule);stroke-width:1}
+.chart .base{stroke:var(--muted);stroke-width:1}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:14px;color:var(--ink);margin-top:6px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.datasrc{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.datasrc details summary{cursor:pointer;font-family:var(--f-mono);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+.datasrc code{font-family:var(--f-code);font-size:12px;overflow-wrap:anywhere;display:block;background:var(--soft);padding:8px;border-radius:4px;margin-top:6px}
+.tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--bg);font-size:13px;padding:6px 9px;border-radius:4px;z-index:50;max-width:260px}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:999px;overflow:hidden;flex-wrap:wrap}
+.seg button{border:0;background:transparent;color:var(--ink);padding:5px 12px;font-size:14px;font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.guess{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;background:var(--soft);padding:12px 14px;border-radius:6px}
+.guess input[type=range]{width:min(320px,100%);accent-color:var(--signal)}
+.guess output{font-family:var(--f-display);font-weight:800;font-size:28px;min-width:3.2ch;font-variant-numeric:tabular-nums}
+
+/* stepper */
+.steps{display:grid;grid-template-columns:minmax(0,19em) minmax(0,1fr);gap:20px}
+@media (max-width:720px){.steps{grid-template-columns:1fr}}
+.steplist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.steplist button{width:100%;text-align:left;border:0;border-left:3px solid var(--rule);background:transparent;color:var(--ink);padding:7px 10px;font-size:15px}
+.steplist button .d{display:block;font-family:var(--f-mono);font-size:11.5px;color:var(--muted)}
+.steplist button[aria-current="true"]{border-left-color:var(--signal);background:var(--soft);color:var(--ink)}
+.steplist button[aria-current="true"] .d{color:var(--signal)}
+.steppanel{min-width:0;border:1px solid var(--rule);border-radius:6px;padding:18px;display:flex;flex-direction:column;gap:10px}
+.steppanel h3{font-size:22px}
+.steppanel{display:grid}
+.steppanel .sp{grid-area:1/1;display:flex;flex-direction:column;gap:10px;visibility:hidden;opacity:0;transform:translateX(14px);transition:opacity .35s ease,transform .35s ease,visibility 0s .35s}
+.steppanel .sp.on{visibility:visible;opacity:1;transform:none;transition:opacity .35s ease,transform .35s ease}
+.steplist{position:relative}
+.steplist button{transition:background .25s,border-color .25s}
+/* charts: grow, count, annotate */
+.chart .bar,.chart .hbar{transform-box:fill-box;transition:transform .9s cubic-bezier(.16,.9,.24,1.12);transition-delay:calc(var(--bi,0)*70ms)}
+.chart .bar{transform-origin:50% 100%} .chart .hbar{transform-origin:0 50%}
+.chart .val{transition:opacity .3s;transition-delay:calc(var(--bi,0)*70ms + 200ms)}
+.chart svg.pre .bar{transform:scaleY(0)} .chart svg.pre .hbar{transform:scaleX(0)} .chart svg.pre .val{opacity:0}
+.chart svg.noanim *{transition:none!important;animation:none!important}
+.chart .annot,.chart .guess{opacity:0;transition:opacity .5s}
+.chart svg.done .annot,.chart svg.done .guess{opacity:1}
+.chart svg[data-locked] .guess{opacity:1}
+.guess-key{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--muted)}
+.guess-result{display:inline-flex;align-items:baseline;gap:6px 10px;flex-wrap:wrap;font-size:15px;padding:6px 12px;border-radius:999px;background:var(--plate);border:1px solid var(--rule)}
+.guess-result .gr-k{color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.06em}
+.chart .draw{stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset .7s ease .1s}
+.chart svg.done .draw{stroke-dashoffset:0}
+.chart .anntext{fill:var(--ink);font-size:16px;paint-order:stroke;stroke:var(--plate);stroke-width:6px;stroke-linejoin:round}
+.chart .bar.emph,.chart .hbar.emph{stroke:var(--ink);stroke-width:2.5;stroke-opacity:0;transition:transform .9s cubic-bezier(.16,.9,.24,1.12),stroke-opacity .4s 1s}
+.chart svg.done .emph{stroke-opacity:.9}
+.chart .glabel{font-weight:600}
+.chart .evt{opacity:0;transform-box:fill-box;transform-origin:50% 50%;transform:translateY(8px);transition:opacity .45s,transform .45s;transition-delay:calc(var(--bi,0)*140ms + 200ms)}
+.chart svg:not(.pre) .evt{opacity:1;transform:none}
+.chart .past{transform-box:fill-box;transform-origin:0 50%;transition:transform 1.2s ease .2s}
+.chart svg.pre .past{transform:scaleX(0)}
+@media all{.chart svg.done .pulse{animation:pulse 1.8s ease-in-out 2}
+ @keyframes pulse{50%{r:12}}}
+/* reserve space for reveals in present mode so nothing jumps */
+body.present .answer[hidden],body.present .verdict[hidden]{display:block!important;visibility:hidden}
+body.present .reveal-row button[hidden],body.present .excard button[data-s][hidden]{display:inline-block!important;visibility:hidden}
+/* ledger for part 4 */
+.ledger{display:grid;grid-template-columns:1fr 1fr;gap:6px 28px;border:1px solid var(--rule);border-radius:6px;padding:12px 16px;background:var(--soft)}
+.ledger h4{margin:0;font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
+.ledger .col{display:flex;flex-direction:column;gap:6px;min-width:0}
+.ledger .col.pro h4{color:var(--accent)} .ledger .col.con h4{color:var(--signal)}
+.ledger .it{font-size:15px;line-height:1.35;padding-left:12px;border-left:3px solid var(--rule)}
+.ledger .pro .it{border-left-color:var(--accent)} .ledger .con .it{border-left-color:var(--signal)}
+.ledger .it.new{font-weight:700}
+.ledger .it.empty{color:var(--muted);border-left-style:dashed;font-style:italic}
+.ledger .concl{grid-column:1/-1;font-family:var(--f-display);font-size:24px;font-weight:700;padding-top:6px;border-top:1px solid var(--rule)}
+@media all{.ledger .it.new,.ledger .concl.new{animation:pop .6s .25s both cubic-bezier(.2,.8,.2,1)}
+ @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}}
+/* rail */
+.rail{display:flex;gap:4px;align-items:stretch}
+.rail button{border:0;background:transparent;color:var(--muted);font-size:12px;font-weight:600;padding:4px 8px 6px;position:relative;min-width:72px;text-align:left}
+.rail button::after{content:"";position:absolute;left:8px;right:8px;bottom:0;height:3px;border-radius:2px;background:var(--rule)}
+.rail button .fill{position:absolute;left:8px;bottom:0;height:3px;border-radius:2px;background:var(--signal);z-index:1;transition:width .45s ease}
+.rail button.cur{color:var(--ink)}
+@media (max-width:820px){.rail{display:none}}
+/* highlighter marks in headings */
+.hl{background:linear-gradient(var(--hl),var(--hl)) no-repeat 0 88%/100% 40%;padding:0 .08em;border-radius:2px}
+body.present .slide.entering .hl{animation:hlsweep .9s cubic-bezier(.3,.7,.2,1) .55s both}
+@keyframes hlsweep{from{background-size:0% 40%}to{background-size:100% 40%}}
+/* entry choreography */
+@media all{
+ body.present .slide.entering>*:not(.slide-head):not(h2):not(.src):not(.notes){animation:rise .7s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*110ms + 120ms)}
+ @keyframes rise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+ body.present .slide.entering .tl li{animation:rise .5s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--r,0)*55ms + 300ms)}
+ body.present .slide.entering .stat{animation:rise .6s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--r,0)*120ms + 250ms)}
+ body.present .slide.entering .quiz .qcard,body.present .slide.entering .cols>*{animation:rise .6s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--r,0)*110ms + 250ms)}
+ body.present .slide.entering .themes span{animation:rise .5s both;animation-delay:calc(var(--r,0)*80ms + 500ms)}
+}
+/* ECG trace that draws itself */
+.ecgdraw polyline{stroke-dasharray:1;stroke-dashoffset:0}
+body.present .slide.entering .ecgdraw polyline{animation:ecg 1.8s cubic-bezier(.5,0,.3,1) .1s both}
+@keyframes ecg{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+.slide.part .ecg{position:absolute;left:0;right:0;top:34%;height:90px;opacity:.9}
+.slide.part .bignum{position:absolute;right:clamp(16px,4vw,48px);top:clamp(10px,2vw,28px);font-family:var(--f-display);font-weight:900;font-size:clamp(120px,18vw,240px);line-height:1;color:transparent;-webkit-text-stroke:2px var(--grid-strong);pointer-events:none}
+body.present .slide.part .bignum{font-size:260px}
+body.present .slide.entering .bignum{animation:rise 1s cubic-bezier(.2,.8,.2,1) .2s both}
+/* questions spotlight in present mode */
+body.present .questions.stepq li{transition:opacity .4s,transform .4s}
+body.present .questions.stepq li.future{opacity:0;transform:translateY(10px)}
+body.present .questions.stepq li.past{opacity:.38}
+body.present .questions.stepq li.now::before{background:var(--signal);color:var(--plate)}
+/* ledger secondary encoding */
+.ledger .pro .it::before{content:"+ ";font-weight:800;color:var(--accent)}
+.ledger .con .it::before{content:"! ";font-weight:800;color:var(--signal)}
+.ledger .con .it{border-left-style:dashed}
+.ledger .it.empty::before{content:none}
+/* view transitions */
+.bar{view-transition-name:topbar}
+.nav{view-transition-name:navbar}
+::view-transition-group(*){animation-duration:.5s;animation-timing-function:cubic-bezier(.3,.7,.2,1)}
+::view-transition-old(root){animation:.38s ease both vt-out}
+::view-transition-new(root){animation:.45s ease both vt-in}
+html[data-dir="back"]::view-transition-old(root){animation-name:vt-out-back}
+html[data-dir="back"]::view-transition-new(root){animation-name:vt-in-back}
+@keyframes vt-out{to{opacity:0;transform:translateX(-60px)}}
+@keyframes vt-in{from{opacity:0;transform:translateX(60px)}}
+@keyframes vt-out-back{to{opacity:0;transform:translateX(60px)}}
+@keyframes vt-in-back{from{opacity:0;transform:translateX(-60px)}}
+html.calm ::view-transition-group(*),html.calm ::view-transition-old(*),html.calm ::view-transition-new(*){animation:none!important}
+html.calm *,html.calm *::before{animation:none!important;transition:none!important}
+.steplist-full{display:flex;flex-direction:column;gap:14px;list-style:none;margin:0;padding:0}
+body:not(.present) #fall-1177 .steps{display:none}
+body.present #stepFull{display:none}
+.toc{position:fixed;right:16px;top:64px;z-index:45;max-height:70vh;overflow:auto;width:min(360px,calc(100vw - 32px));display:flex;flex-direction:column;gap:4px;padding:12px;background:var(--plate);border:1px solid var(--rule);border-radius:6px;box-shadow:0 8px 30px rgba(0,0,0,.18)}
+.toc button{text-align:left;border-radius:4px}
+.steplist-full li{border-left:3px solid var(--rule);padding-left:12px}
+.steplist-full .d{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+
+/* exercise cards */
+.ex{display:flex;flex-direction:column;gap:12px}
+.excard{border:1px solid var(--rule);border-radius:6px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.excard .sc{font-weight:600;font-size:17px}
+.opts{display:flex;gap:8px;flex-wrap:wrap}
+.opts button{border:1px solid var(--rule);background:var(--plate);color:var(--ink);border-radius:4px;padding:5px 12px;font-size:14px;font-weight:600}
+.opts button.picked{border-color:var(--ink);background:var(--ink);color:var(--bg)}
+.answer{border-top:1px solid var(--rule);padding-top:8px;font-size:15.5px}
+.answer .ans{font-weight:700;color:var(--accent)}
+
+/* definition */
+.def{font-family:var(--f-display);font-weight:500;font-size:clamp(21px,2.3vw,30px);line-height:1.25;max-width:34ch;border-left:4px solid var(--accent);padding-left:18px}
+.def cite{display:block;font-family:var(--f-mono);font-style:normal;font-size:12.5px;color:var(--muted);margin-top:10px;}
+.themes{display:flex;flex-wrap:wrap;gap:8px}
+.themes span{border:1px solid var(--rule);border-radius:999px;padding:4px 12px;font-size:14.5px}
+
+/* checklist */
+.check{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:10px 24px}
+.check label{display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-size:16px}
+.check input{margin-top:5px;width:18px;height:18px;accent-color:var(--accent);flex:none}
+.check small{display:block;color:var(--muted);font-size:13.5px}
+.progress{font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+
+/* compare table */
+.tbl-wrap{overflow-x:auto}
+table.cmp{border-collapse:collapse;width:100%;font-size:15px;min-width:520px}
+table.cmp th,table.cmp td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--rule);vertical-align:top}
+table.cmp th{font-family:var(--f-mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.num{font-variant-numeric:tabular-nums}
+
+/* sources slide */
+.biblio{display:flex;flex-direction:column;gap:22px}
+.biblio h3{font-size:18px;}
+.biblio ol{margin:8px 0 0;padding-left:1.5em;display:flex;flex-direction:column;gap:6px;font-size:14.5px}
+.biblio li{overflow-wrap:anywhere}
+.flag{font-family:var(--f-mono);font-size:11px;color:var(--signal);border:1px solid currentColor;border-radius:3px;padding:0 4px;margin-left:4px}
+
+/* bottom nav (present) */
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:none;justify-content:center;gap:10px;align-items:center;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1px solid var(--rule)}
+.nav .count{font-family:var(--f-mono);font-size:13px;color:var(--muted);min-width:7ch;text-align:center}
+.progressbar{position:fixed;left:0;top:0;height:3px;background:var(--signal);z-index:40;width:0;display:none}
+
+/* PRESENT MODE: active slide laid out at a fixed design width, then scaled to fit the space between bar and nav */
+body.present{overflow:hidden;padding-bottom:0}
+body.present .deck{margin:0;max-width:none}
+body.present .slide{display:none}
+body.present .slide.active{display:flex;position:fixed;left:0;top:0;width:1280px;transform-origin:0 0;font-size:19px;scroll-margin-top:0}
+body.present .src,body.present .datasrc{display:none}
+body.present .slide h2{font-size:46px}
+body.present .slide.part h2{font-size:84px}
+body.present .slide.title h1{font-size:110px}
+body.present .lede{font-size:22px}
+body.present .big{font-size:70px}
+body.present .questions li{font-size:28px}
+body.present .def{font-size:28px}
+body.present .slide.part,body.present .slide.title{min-height:620px}
+body.present .tl li{padding:8px 0}
+body.present .chart{max-width:900px}
+body.present .ex{display:grid}
+body.present .ex>.excard{grid-area:1/1;visibility:hidden;opacity:0;transform:translateY(10px);transition:opacity .35s,transform .35s,visibility 0s .35s;padding:24px 28px}
+body.present .ex>.excard.focus{visibility:visible;opacity:1;transform:none;transition:opacity .35s,transform .35s}
+body.present .excard .sc{font-size:28px;font-family:var(--f-display);line-height:1.25}
+body.present .excard .answer{font-size:20px}
+body.present .excard .opts button{font-size:17px;padding:8px 16px}
+.exnav{display:none;gap:8px;align-items:center;font-size:14px;color:var(--muted)}
+body.present .exnav{display:flex}
+.exnav i{width:10px;height:10px;border-radius:50%;background:var(--rule);display:inline-block}
+.exnav i.on{background:var(--signal)}
+.exnav i.done{background:var(--muted)}
+body.present #biblio{display:none}
+.present-only{display:none}
+body.present .present-only{display:block}
+body.present .nav,body.present .progressbar{display:flex}
+body.present .progressbar{display:block}
+body.present .src:not([open]),body.present .notes{opacity:.85}
+body.present.hide-notes .notes{display:none}
+
+@media all{
+
+}
+@media (max-width:600px){ .tl li{grid-template-columns:3.8em 1fr} .tl .yr{font-size:17px} }
+</style>
+<style>[hidden]{display:none!important}img{max-width:100%}body{margin:0}</style>
+</head>
+<body>
+
+
+<div class="progressbar" id="pbar"></div>
+<header class="bar">
+  <div class="brand">AI i vården <span>· ST-utbildning, Länssjukhuset Ryhov</span></div>
+  <div class="ctrls">
+    <button class="btn" id="tocBtn" type="button">Innehåll</button>
+    <div class="seg" id="themeSeg" role="group" aria-label="Färgtema">
+      <button type="button" data-v="light" aria-pressed="false">Ljust</button>
+      <button type="button" data-v="dark" aria-pressed="false">Mörkt</button>
+    </div>
+    <button class="btn" id="motionBtn" type="button" aria-pressed="true">Animationer på</button>
+    <button class="btn" id="resetBtn" type="button" title="Nollställ alla övningar (R)">Återställ</button>
+    <button class="btn" id="fsBtn" type="button">Helskärm</button>
+    <button class="btn" id="notesBtn" type="button" aria-pressed="false" hidden>Talarstöd</button>
+    <button class="btn primary" id="modeBtn" type="button">Presentera</button>
+  </div>
+</header>
+
+<main class="deck" id="deck">
+
+<!-- ============ TITLE ============ -->
+<section class="slide title" id="start" data-title="Start">
+  <div class="slide-head"><span>Sjukvårdens ändrade förutsättningar</span><span>Läget per 9 oktober 2026</span></div>
+  <h1>AI i vården<em>fördelar och fällor</em></h1>
+  <svg class="ecg ecgdraw" viewBox="0 0 1000 60" preserveAspectRatio="none" aria-hidden="true"><polyline pathLength="1" fill="none" stroke="currentColor" stroke-width="2" points="0,40 180,40 200,36 215,40 240,40 252,46 262,4 274,56 284,40 330,40 350,32 372,40 560,40 580,36 595,40 620,40 632,46 642,4 654,56 664,40 710,40 730,32 752,40 1000,40"/></svg>
+  <div class="meta-row">
+    <span><strong>Carl Johan Odehammar</strong>, Jönköping University</span>
+    <span class="mono">carl-johan.odehammar@ju.se</span>
+  </div>
+  <details class="notes"><summary>Om presentationen</summary><div>Varje påstående har en källa längst ned på sidan. Etiketterna visar varifrån uppgiften kommer: <span class="chip SE">SE</span> Sverige, <span class="chip EU">EU</span> EU-rätt eller europeisk myndighet, och landskod (till exempel <span class="chip UK">UK</span> eller <span class="chip USA">USA</span>) för internationella källor. Statistiken är hämtad direkt från SCB:s och Eurostats öppna API:er den 9 oktober 2026.</div></details>
+</section>
+
+<section class="slide" id="agenda" data-title="Upplägg">
+  <div class="slide-head"><span>Upplägg</span><span>10.10 till 12.00</span></div>
+  <h2>Sex delar och en paus</h2>
+  <ol class="questions" style="gap:12px">
+    <li>Fältet är inte nytt</li>
+    <li>Nuläge i Sverige</li>
+    <li>Ramverken, och vad de kräver av oss</li>
+    <li>Fördelar och fällor i forskningen</li>
+    <li>Vad krävs av AI i vården?</li>
+    <li>Diskussion</li>
+  </ol>
+</section>
+
+<!-- ============ PART 1 ============ -->
+<section class="slide part" id="del1" data-title="Del 1. Fältet är inte nytt">
+  <div class="partno">Del 1</div>
+  <h2>Fältet är inte nytt</h2>
+  <p class="lede">AI-forskning i medicin är äldre än de flesta av oss. Det nya är att generella chattverktyg finns i allas fickor.</p>
+</section>
+
+<section class="slide" id="turing" data-title="Klarar du Turingtestet?" data-src="turing1950,claude">
+  <div class="slide-head"><span>1.1 · Imitationsspelet</span><span>Övning</span></div>
+  <h2>Klarar du Turingtestet?</h2>
+  <p class="lede">Alan Turing föreslog 1950 ett ”imitationsspel”: om en bedömare inte säkert kan skilja maskinens svar från en människas, har maskinen klarat testet. Läs svaren. Är de skrivna av en människa eller av en AI?</p>
+  <div class="quiz" id="quiz"></div>
+  <details class="notes"><summary>Talarstöd</summary><div>Låt salen rösta med handuppräckning innan du visar svaret. Svaren är skrivna av en AI-modell för den här presentationen. Vill du blanda in ett mänskligt svar kan du byta ut ett av dem.</div></details>
+</section>
+
+<section class="slide" id="tidslinje" data-title="Tidslinje 1936 till 2018" data-src="turing1936,turing1950,dartmouth,eliza,dedombal,yu1979,heden,gulshan,esteva,defauw,mdr">
+  <div class="slide-head"><span>1.2 · Tidslinje, del 1</span><span>Filtrera</span></div>
+  <h2>Från Turing till djupinlärning, 1936 till 2018</h2>
+  <div class="filters" role="group" aria-label="Filtrera på ursprung">
+    <span class="lbl">Ursprung</span>
+    <div class="seg tlGeo">
+      <button type="button" data-v="all" aria-pressed="true">Alla</button>
+      <button type="button" data-v="SE" aria-pressed="false">Sverige</button>
+      <button type="button" data-v="EU" aria-pressed="false">EU</button>
+      <button type="button" data-v="INT" aria-pressed="false">Internationellt</button>
+    </div>
+  </div>
+  <div class="filters" role="group" aria-label="Filtrera på typ">
+    <span class="lbl">Typ</span>
+    <div class="seg tlKind">
+      <button type="button" data-v="all" aria-pressed="true">Alla</button>
+      <button type="button" data-v="forskning" aria-pressed="false">Forskning</button>
+      <button type="button" data-v="klinik" aria-pressed="false">Klinik</button>
+      <button type="button" data-v="reglering" aria-pressed="false">Reglering</button>
+    </div>
+  </div>
+  <ol class="tl" id="tl"></ol>
+  <details class="notes"><summary>Talarstöd</summary><div>Poängen: de tre problemen från 1970-talet (ansvar, arbetsflöde, tillit) finns kvar. MYCIN presterade i nivå med eller bättre än lärarna vid Stanford i en liten studie med tio fall, men användes aldrig kliniskt. Leeds-systemet 1972 och EKG-tolkningen i Lund på 1990-talet visar att Europa och Sverige var med tidigt.</div></details>
+</section>
+
+<section class="slide" id="tidslinje2" data-title="Tidslinje 2021 till 2029" data-src="masai2023,screentrust,lt_tillsyn2023,aiact,ehds_ec,slf2025,masai2026,lmv_scribes,omnibus,sos_ai">
+  <div class="slide-head"><span>1.3 · Tidslinje, del 2</span><span>Filtrera</span></div>
+  <h2>Från ChatGPT till högriskkrav, 2021 till 2029</h2>
+  <div class="filters" role="group" aria-label="Filtrera på ursprung">
+    <span class="lbl">Ursprung</span>
+    <div class="seg tlGeo">
+      <button type="button" data-v="all" aria-pressed="true">Alla</button>
+      <button type="button" data-v="SE" aria-pressed="false">Sverige</button>
+      <button type="button" data-v="EU" aria-pressed="false">EU</button>
+      <button type="button" data-v="INT" aria-pressed="false">Internationellt</button>
+    </div>
+  </div>
+  <div class="filters" role="group" aria-label="Filtrera på typ">
+    <span class="lbl">Typ</span>
+    <div class="seg tlKind">
+      <button type="button" data-v="all" aria-pressed="true">Alla</button>
+      <button type="button" data-v="forskning" aria-pressed="false">Forskning</button>
+      <button type="button" data-v="klinik" aria-pressed="false">Klinik</button>
+      <button type="button" data-v="reglering" aria-pressed="false">Reglering</button>
+    </div>
+  </div>
+  <ol class="tl" id="tl2"></ol>
+</section>
+
+<section class="slide" id="tre-problem" data-title="Tre problem, då och nu" data-src="yu1979,sos_ai,smer">
+  <div class="slide-head"><span>1.4 · Samma frågor då och nu</span><span></span></div>
+  <h2>Tre problem, <span class="hl">då och nu</span></h2>
+  <div class="cols">
+    <div class="stat"><h3>Ansvar</h3><p>Om systemet rekommenderar och det blir fel, vem bär ansvaret? Smer beskriver risken för ”ansvarsluckor”.</p></div>
+    <div class="stat"><h3>Arbetsflöde</h3><p>MYCIN passade inte in i hur läkare arbetade. I dag används samma AI-produkt på olika sätt i olika regioner, enligt Socialstyrelsen.</p></div>
+    <div class="stat"><h3>Tillit</h3><p>Det är svårt att lita på det man inte kan granska. Och lätt att lita för mycket på det som oftast har rätt.</p></div>
+  </div>
+  <ul class="questions">
+    <li>Har du fattat ett kliniskt beslut där en del av underlaget var att det kändes rätt?</li>
+    <li>Vad skulle krävas för att du skulle lita på ett AI-system lika mycket som på en erfaren kollega?</li>
+  </ul>
+</section>
+
+<!-- ============ PART 2 ============ -->
+<section class="slide part" id="del2" data-title="Del 2. Nuläge i Sverige">
+  <div class="partno">Del 2</div>
+  <h2>Nuläge i Sverige</h2>
+  <p class="lede">Hur mycket används AI, av vem, och vad har hänt när det har gått fel?</p>
+</section>
+
+<section class="slide" id="scb-anv" data-title="Generativ AI i befolkningen" data-src="scb_tab6388,scb_news2025">
+  <div class="slide-head"><span>2.1 · Befolkningen</span><span>SCB · data hämtad 9 okt 2026</span></div>
+  <h2>Gissa först: hur många 55- till 64-åringar har använt <span class="hl">generativ AI</span>?</h2>
+  <div class="guess">
+    <label for="guessRange">Din gissning för 2026</label>
+    <input type="range" id="guessRange" min="0" max="100" value="20" step="1">
+    <output id="guessOut" for="guessRange">20 %</output>
+    <button class="btn primary" type="button" id="guessBtn">Visa SCB:s siffror</button>
+    <span class="guess-key">Streckad linje <svg width="34" height="10" aria-hidden="true"><line x1="0" y1="5" x2="34" y2="5" stroke="var(--signal)" stroke-width="3" stroke-dasharray="6 4"/></svg> = din gissning</span>
+    <span class="guess-result" id="guessResult" style="visibility:hidden"><span class="gr-k">Faktiskt</span><b>00 %</b><span class="gr-k">Skillnad</span><b>nästan exakt</b></span>
+  </div>
+  <div class="filters"><span class="lbl">År</span>
+    <div class="seg" id="yrSeg">
+      <button type="button" data-v="2024" aria-pressed="false">2024</button>
+      <button type="button" data-v="2025" aria-pressed="false">2025</button>
+      <button type="button" data-v="2026" aria-pressed="true">2026</button>
+    </div>
+  </div>
+  <div class="chart" data-vt="vt-pop" id="chAge" aria-label="Andel som använt generativa AI-verktyg senaste tre månaderna, efter ålder"></div>
+  <p class="body">Totalt för alla 16 år och äldre: <b class="num" id="totLine">47 %</b>. Siffrorna avser första kvartalet varje år och har en felmarginal på 1 till 5 procentenheter.</p>
+  <div class="datasrc" data-ds="tab6388"></div>
+</section>
+
+<section class="slide" id="eurostat" data-title="Sverige i Europa" data-src="eurostat_iaiu,scb_tab6388">
+  <div class="slide-head"><span>2.2 · Jämförelse</span><span>Eurostat · 2025</span></div>
+  <h2>Sverige ligger över EU-snittet, men <span class="hl">lägst i Norden</span></h2>
+  <div class="filters"><span class="lbl">Visa</span>
+    <div class="seg" id="euSeg">
+      <button type="button" data-v="nord" aria-pressed="true">Norden och EU</button>
+      <button type="button" data-v="all" aria-pressed="false">Alla länder</button>
+    </div>
+  </div>
+  <div class="chart" data-vt="vt-pop" id="chEU"></div>
+  <p class="body">Andel av befolkningen 16 till 74 år som har använt generativa AI-verktyg under de senaste tre månaderna, 2025. Eurostat mäter 16 till 74 år och SCB 16 år och äldre, därför skiljer sig Sveriges siffra (42 % här, 37 % hos SCB).</p>
+  <div class="datasrc" data-ds="eurostat"></div>
+</section>
+
+<section class="slide" id="lakare" data-title="Läkarna och regionerna" data-src="slf2024,lt_slf2024,slf2025,blease,vardkartan">
+  <div class="slide-head"><span>2.3 · Läkare och regioner</span><span></span></div>
+  <h2>Var fjärde läkare använder AI. <span class="hl">Få arbetsplatser har regler</span> för det.</h2>
+  <div class="stats">
+    <div class="stat"><span class="big">25 %</span><span class="lbl">av läkarna använde AI i arbetet, ungefär hälften av dem dagligen. Vanligast: journalskrivning (46 % av användarna). <span class="chip SE">SE</span> 2024</span></div>
+    <div class="stat"><span class="big">6 %</span><span class="lbl">uppgav att arbetsplatsen hade riktlinjer för AI. 55 % svarade nej, 39 % visste inte. <span class="chip SE">SE</span> 2024</span></div>
+    <div class="stat"><span class="big">8 av 18</span><span class="lbl">regioner hade en policy för AI-användning när Läkarförbundet frågade 2025. <span class="chip SE">SE</span></span></div>
+    <div class="stat"><span class="big">13 %</span><span class="lbl">av 179 AI-initiativ i 17 regioner var fullt införda i vården under andra halvåret 2024. Flest inom administration (66) och radiologi (31). <span class="chip SE">SE</span></span></div>
+  </div>
+  <p class="body">Läkarförbundets enkät: 1 436 svar, svarsfrekvens 36 %, viktad. Som jämförelse uppgav 20 % av drygt 1 000 allmänläkare i Storbritannien 2024 att de använde generativ AI kliniskt <span class="chip UK">UK</span>.</p>
+</section>
+
+<section class="slide" id="svea" data-title="Svea" data-src="svea,svea_openai,gbg_svea,lundell">
+  <div class="slide-head"><span>2.4 · Offentlig sektor</span><span>Exempel</span></div>
+  <h2>Svea, en <span class="hl">gemensam</span> AI-assistent för offentlig sektor</h2>
+  <div class="cols">
+    <div class="body">
+      <p>Ett samarbete mellan kommuner, regioner och myndigheter som koordineras av AI Sweden och finansieras av Vinnova och deltagarna. Svea är ett webbaserat chattgränssnitt, byggt på öppen källkod, som kan använda olika språkmodeller och körs på infrastruktur i Sverige.</p>
+      <p>Användningsområden som nämns: sammanfatta och förenkla text, skriva handlingar enligt mallar, klassificera dokument.</p>
+    </div>
+    <ol class="steplist-full" style="display:flex">
+      <li><span class="d">Etapp 1 · 2024</span><br>Sex deltagare, bland dem Region Skåne, Region Halland och Västra Götalandsregionen.</li>
+      <li><span class="d">Etapp 2 · 2025</span><br>Över 50 organisationer, bland dem Inera och Region Värmland.</li>
+      <li><span class="d">Etapp 3 · 2026</span><br>Över 120 organisationer, bland dem Region Stockholm. Målet är en långsiktig modell för drift.</li>
+    </ol>
+  </div>
+  <div class="note-box calm"><b>Varför det spelar roll:</b> var data behandlas avgör vilka sekretessregler som går att uppfylla. Forskare vid Högskolan i Skövde bedömde 2024 att myndigheter ofta använder externa AI-tjänster under okända villkor och utan ordentlig lämplighetsbedömning. AI Sweden redovisar ännu inga uppmätta effekter av Svea.</div>
+</section>
+
+<section class="slide" id="fall-1177" data-title="Fallet 1177 Direkt" data-src="svt_skane2020,svt_jamtland,lt_tillsyn2023,lt_debatt2024,lt_ostergotland,lt_uppsala_kalmar,rjl1177,umu_rct">
+  <div class="slide-head"><span>2.5 · Fall</span><span>Klicka dig igenom</span></div>
+  <h2>Platform24 och 1177 Direkt: <span class="hl">automatisk triage</span> i sex steg</h2>
+  <div class="steps">
+    <ol class="steplist" id="stepList"></ol>
+    <div class="steppanel" id="stepPanel" aria-live="polite"></div>
+  </div>
+  <ol class="steplist-full" id="stepFull"></ol>
+  <details class="notes"><summary>Talarstöd</summary><div>Stanna vid steg 5 (Kalmar). Fråga: Vad hade du gjort om du haft 40 ärenden i kön och systemet sa ”låg prioritet”? Region Jönköpings län använder 1177 direkt, så verktyget finns i deltagarnas egen region.</div></details>
+</section>
+
+<section class="slide" id="journal-ai" data-title="AI som skriver journalen" data-src="uppsala_tal,lmv_scribes,lt_aibot,svt_helsingborg">
+  <div class="slide-head"><span>2.6 · Journalföring</span><span></span></div>
+  <h2>AI i journalen: <span class="hl">införs, granskas och anmäls</span> samtidigt</h2>
+  <div class="cols">
+    <div class="stat"><span class="kicker">Införs · december 2025</span><h3>Region Uppsala</h3><p>Cirka 24 miljoner kronor i statsbidrag till AI-baserad taligenkänning som skriver direkt i journalen på Akademiska sjukhuset. Ska vara klart senast 2027. Pressmeddelandet beskriver förväntade effekter men inga mätbara mål.</p></div>
+    <div class="stat"><span class="kicker">Granskas · mars 2026</span><h3>Läkemedelsverket</h3><p>Granskar tillverkare av AI-assistenter som spelar in och sammanfattar patientsamtal. Frågan är när de i själva verket är medicintekniska produkter. Att kalla produkten dokumentationsstöd räcker inte om den påverkar beslutsunderlaget.</p></div>
+    <div class="stat"><span class="kicker">Anmäls · mars 2025</span><h3>IVO-anmälan</h3><p>En läkare anmäldes till IVO av arbetsgivaren, misstänkt för att ha använt en chattbot i journalen. Anteckningar började med ”Självklart” och innehöll platshållare för namn och personnummer. Läkaren uppger att AI bara användes för språket. Utfallet är inte känt.</p></div>
+  </div>
+</section>
+
+<section class="slide" id="disk2" data-title="Diskussion 2">
+  <div class="slide-head"><span>2.7 · Diskussion</span><span></span></div>
+  <h2>Diskutera två och två</h2>
+  <ul class="questions">
+    <li>Använder du redan AI i ditt arbete, medvetet eller omedvetet?</li>
+    <li>Vilket av exemplen påverkar din specialitet mest?</li>
+    <li>Var går gränsen mellan ett beslutsstöd och ett beslut?</li>
+  </ul>
+</section>
+
+<section class="slide part" id="paus" data-title="Paus">
+  <div class="partno">Paus</div>
+  <h2>15 till 20 minuter</h2>
+  <p class="lede">Efter pausen: ramverken, forskningen och vad som krävs.</p>
+</section>
+
+<!-- ============ PART 3 ============ -->
+<section class="slide part" id="del3" data-title="Del 3. Ramverken">
+  <div class="partno">Del 3</div>
+  <h2>Ramverken, och vad de kräver av oss</h2>
+  <p class="lede">Ramverken skyddar oss bara om vi agerar på rätt sätt.</p>
+</section>
+
+<section class="slide" id="ramverk" data-title="Ramverk som gäller" data-src="pdl,gdpr,osl,psl,hsl,aiact,omnibus,mdr,ehds_reg">
+  <div class="slide-head"><span>3.1 · Översikt</span><span></span></div>
+  <h2>Ramverk som gäller när AI används i vården</h2>
+  <div class="tbl-wrap"><table class="cmp">
+    <thead><tr><th>Ramverk</th><th>Vad det styr</th><th></th></tr></thead>
+    <tbody>
+      <tr><td><b>Patientdatalagen</b> (2008:355)</td><td>Vem som får ta del av och behandla patientuppgifter i vården.</td><td><span class="chip SE">SE</span></td></tr>
+      <tr><td><b>Offentlighets- och sekretesslagen</b> (2009:400)</td><td>Sekretess i offentlig vård. Sedan 1 juli 2023 får uppgifter lämnas ut för enbart teknisk bearbetning eller lagring, om det inte är olämpligt (10 kap. 2 a §).</td><td><span class="chip SE">SE</span></td></tr>
+      <tr><td><b>Patientsäkerhetslagen</b> (2010:659)</td><td>Vetenskap och beprövad erfarenhet, personligt ansvar och tystnadsplikt.</td><td><span class="chip SE">SE</span></td></tr>
+      <tr><td><b>Hälso- och sjukvårdslagen</b> (2017:30)</td><td>Människovärde, behov och solidaritet: grunden för prioriteringar.</td><td><span class="chip SE">SE</span></td></tr>
+      <tr><td><b>Dataskyddsförordningen</b> (EU) 2016/679</td><td>Rättslig grund och skydd för hälsodata som personuppgifter.</td><td><span class="chip EU">EU</span></td></tr>
+      <tr><td><b>Förordningen om medicintekniska produkter</b> (EU) 2017/745</td><td>Gäller när programvara har ett medicinskt syfte. CE-märkning, riskklassificering och tillverkarens ansvar.</td><td><span class="chip EU">EU</span></td></tr>
+      <tr><td><b>AI-förordningen</b> (EU) 2024/1689, ändrad genom (EU) 2026/1744</td><td>Riskbaserade krav på AI-system: förbud, högrisk, transparens, AI-kunnighet.</td><td><span class="chip EU">EU</span></td></tr>
+      <tr><td><b>EHDS</b>, förordning (EU) 2025/327</td><td>Europeiskt hälsodataområde: utbyte av journaldata och tillstånd för sekundär användning.</td><td><span class="chip EU">EU</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="slide" id="aiact-tid" data-title="AI-förordningens tidslinje" data-src="aiact,omnibus,pts,sou2025,imyfaq">
+  <div class="slide-head"><span>3.2 · AI-förordningen</span><span>Ändrad juli 2026</span></div>
+  <h2>Högriskkraven har <span class="hl">skjutits upp</span></h2>
+  <div class="chart" id="chAct"></div>
+  <div class="cols">
+    <div class="body"><p>Förordning (EU) 2026/1744, den så kallade digitala omnibusen om AI, trädde i kraft 27 juli 2026. Den flyttade högriskkraven: fristående system i bilaga III från <b>2 december 2027</b>, AI i produkter som omfattas av bland annat MDR från <b>2 augusti 2028</b>.</p></div>
+    <div class="body"><p>Utredningen SOU 2025:101 föreslår att PTS får huvudansvaret för tillsynen i Sverige. Under 2026 delar PTS, IMY och flera andra myndigheter på uppgiften. Kompletterande svensk lagstiftning saknas ännu.</p></div>
+  </div>
+  <div class="note-box">Förra terminens version av den här bilden angav att högriskkraven gällde från 2025. Det stämde inte då och stämmer inte nu.</div>
+</section>
+
+<section class="slide" id="hogrisk" data-title="Är det här högrisk?" data-src="aiact,omnibus,mdr,lmv_scribes,osl,psl">
+  <div class="slide-head"><span>3.3 · Övning</span><span>Välj, visa sedan svaret</span></div>
+  <h2>Är det här <span class="hl">högrisk</span> enligt AI-förordningen?</h2>
+  <p class="body">Ett AI-system kan bli högrisk på två sätt: om det är en säkerhetskomponent i, eller själv är, en produkt som kräver bedömning av ett anmält organ enligt till exempel MDR (bilaga I), eller om det finns med i bilaga III. Där nämns bland annat system för triage av patienter i akut sjukvård. All AI i vården är alltså inte högrisk.</p>
+  <div class="ex" id="riskEx"></div>
+  <p class="src" style="border:0;padding:0">Förenklade bedömningar för undervisning, inte juridisk rådgivning. Den faktiska bedömningen beror på produktens avsedda ändamål.</p>
+</section>
+
+<section class="slide" id="ai-kunnighet" data-title="AI-kunnighet" data-src="longmagerko,aiact,omnibus">
+  <div class="slide-head"><span>3.4 · AI-kunnighet</span><span>Personal</span></div>
+  <h2>Vem <span class="hl">förstår</span> systemen?</h2>
+  <div class="cols">
+    <div class="def">”En uppsättning kompetenser som gör det möjligt för individer att kritiskt värdera AI-teknik, kommunicera och samarbeta effektivt med AI, och använda AI som verktyg på nätet, hemma och på arbetsplatsen.”<cite>Long &amp; Magerko, CHI 2020 (min översättning)</cite></div>
+    <div class="body">
+      <p>Long och Magerko beskriver 17 kompetenser i fem teman:</p>
+      <div class="themes" style="margin-top:10px"><span>Vad är AI?</span><span>Vad kan AI göra?</span><span>Hur fungerar AI?</span><span>Hur bör AI användas?</span><span>Hur uppfattar människor AI?</span></div>
+      <p style="margin-top:14px">Artikel 4 i AI-förordningen kräver att leverantörer och tillhandahållare av AI-system vidtar åtgärder för att främja AI-kunnighet hos sin personal. Efter ändringen 2026 krävs ingen viss nivå. Förordningen har också en egen definition av AI-kunnighet (artikel 3.56).</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="ai-halsa" data-title="AI och hälsoinformation" data-src="scb_tab6388,sos_ai">
+  <div class="slide-head"><span>3.5 · Patienterna</span><span>SCB · data hämtad 9 okt 2026</span></div>
+  <h2><span class="hl">23 %</span> har använt AI för att söka information om hälsa</h2>
+  <p class="body">Andel av befolkningen 16 år och äldre, under de senaste tre månaderna, 2026.</p>
+  <div class="filters"><span class="lbl">Dela upp efter</span>
+    <div class="seg" id="hSeg">
+      <button type="button" data-v="age" aria-pressed="true">Ålder</button>
+      <button type="button" data-v="edu" aria-pressed="false">Utbildning</button>
+      <button type="button" data-v="inc" aria-pressed="false">Inkomst</button>
+      <button type="button" data-v="sex" aria-pressed="false">Kön</button>
+    </div>
+  </div>
+  <div class="chart" id="chHealth"></div>
+  <p class="body">SCB frågade för första gången 2026 om AI-användning för hälsa och välmående. Socialstyrelsen konstaterar samma år att patientinformationen om AI i vården ”i dag är fragmentarisk”.</p>
+  <ul class="questions"><li>Hur många av dina patienter förstår hur de system de utsätts för faktiskt fungerar? Hur många av dina kolleger?</li></ul>
+  <div class="datasrc" data-ds="tab6388health"></div>
+</section>
+
+<section class="slide" id="sekretess" data-title="Sekretess och molntjänster" data-src="osl_prop,lundell,digg_imy,dan">
+  <div class="slide-head"><span>3.6 · Sekretess</span><span>Fall</span></div>
+  <h2>Ett översättningsverktyg, en mobil och en journal</h2>
+  <div class="note-box calm body">
+    <p><b>Anonymiserat disciplinärende, 2025.</b> En student på ett vårdprogram vid ett svenskt lärosäte fotograferade patientjournaler med sin privata mobil under den verksamhetsförlagda utbildningen. Syftet var att översätta medicinska begrepp med en översättningstjänst på nätet. Studenten raderade bilderna och hade inte för avsikt att sprida något.</p>
+    <p style="margin-top:.6em">Disciplinnämnden bedömde ändå att patienterna hade utsatts för risken att känsliga personuppgifter och sekretessbelagd information spreds, och beslutade om disciplinåtgärd.</p>
+  </div>
+  <div class="cols">
+    <div class="body"><h3>Regeln</h3><p style="margin-top:6px">Offentlig vård får sedan 2023 lämna ut uppgifter till en leverantör för enbart teknisk bearbetning eller lagring, efter en bedömning av om det är olämpligt. En AI-tjänst som använder uppgifterna för egna syften faller utanför.</p></div>
+    <div class="body"><h3>Forskningen</h3><p style="margin-top:6px">Lundell m.fl. (2024) bedömer att svenska myndigheter riskerar att lämna ut sekretessbelagda uppgifter i stor skala via externa AI-tjänster, och att enskilda medarbetare kan drabbas av straffrättsliga påföljder.</p></div>
+    <div class="body"><h3>Stödet</h3><p style="margin-top:6px">DIGG och IMY har gett ut nationella riktlinjer för generativ AI i offentlig förvaltning (2025), bland annat om dataskydd, informationssäkerhet och upphandling.</p></div>
+  </div>
+</section>
+
+<section class="slide" id="prioritering" data-title="Prioriteringar" data-src="hsl">
+  <div class="slide-head"><span>3.7 · Prioriteringar</span><span></span></div>
+  <h2>En AI föreslår <span class="hl">lägre prioritet</span> för en äldre patient</h2>
+  <p class="lede">Systemet anger låg återhämtningsprognos. Hur reagerar du?</p>
+  <div class="def" style="max-width:46ch">”Vården ska ges med respekt för alla människors lika värde och för den enskilda människans värdighet. Den som har det största behovet av hälso- och sjukvård ska ges företräde till vården.”<cite>Hälso- och sjukvårdslagen (2017:30) 3 kap. 1 §</cite></div>
+  <ul class="questions"><li>Vilka uppgifter bygger prognosen på, och väger modellen i praktiken in åldern?</li><li>Vem kan motivera beslutet för patienten och de anhöriga?</li></ul>
+</section>
+
+<section class="slide" id="disk3" data-title="Diskussion 3">
+  <div class="slide-head"><span>3.8 · Diskussion</span><span></span></div>
+  <h2>Vet du vad som gäller där du arbetar?</h2>
+  <ul class="questions">
+    <li>Vet du om de AI-system du använder är CE-märkta, och för vilket ändamål?</li>
+    <li>Vem i din verksamhet ansvarar för att kontrollera det?</li>
+    <li>Vad händer med ditt yrkesansvar om du använder ett system på ett sätt det inte är avsett för?</li>
+  </ul>
+</section>
+
+<!-- ============ PART 4 ============ -->
+<section class="slide part" id="del4" data-title="Del 4. Fördelar och fällor">
+  <div class="partno">Del 4</div>
+  <h2>Fördelar och fällor i forskningen</h2>
+  <p class="lede">En randomiserad och en prospektiv svensk studie visar vad AI kan göra. Tre europeiska studier visar vad det kan kosta.</p>
+</section>
+
+<section class="slide" id="masai" data-title="MASAI" data-src="masai2023,masai2025,masai2026">
+  <div class="slide-head"><span>4.1 · Fördel</span><span>Lund · randomiserad</span></div>
+  <h2>MASAI: <span class="hl">fler cancerfall</span> hittade med <span class="hl">mindre granskningsarbete</span></h2>
+  <p class="body">Randomiserad studie i screeningprogrammet i Skåne. Knappt 106 000 kvinnor lottades till antingen AI-stödd granskning eller sedvanlig dubbelgranskning, från april 2021 till december 2022.</p>
+  <div class="chart" data-vt="vt-mammo" id="chMasai"></div>
+  <div class="stats">
+    <div class="stat"><span class="big">44 %</span><span class="lbl">mindre granskningsarbete för radiologerna</span></div>
+    <div class="stat"><span class="big">1,55</span><span class="lbl">fall av intervallcancer per 1 000 kvinnor med AI, mot 1,76 utan. AI var inte sämre, men skillnaden är inte statistiskt säkerställd.</span></div>
+    <div class="stat"><span class="big">80,5 %</span><span class="lbl">sensitivitet med AI, mot 73,8 %. Specificiteten 98,5 % i båda grupperna.</span></div>
+  </div>
+</section>
+
+<section class="slide" id="screentrust" data-title="ScreenTrustCAD" data-src="screentrust,sos_ai">
+  <div class="slide-head"><span>4.2 · Fördel</span><span>Stockholm · prospektiv</span></div>
+  <h2>ScreenTrustCAD: <span class="hl">en radiolog plus AI</span> hittade lika mycket som två</h2>
+  <p class="body">Över 55 500 kvinnor undersöktes vid Capio S:t Görans sjukhus 2021 och 2022. Alla undersökningar lästes av både radiologer och AI.</p>
+  <div class="chart" data-vt="vt-mammo" id="chScreen"></div>
+  <div class="note-box">Socialstyrelsens förstudie 2026 visar att samma AI-produkt för mammografi används med olika tröskelvärden och arbetssätt i olika regioner. Resultat från en studie gäller inte automatiskt hos oss.</div>
+</section>
+
+<section class="slide" id="automationsbias" data-title="Automationsbias" data-src="dratsch">
+  <div class="slide-head"><span>4.3 · Fälla</span><span>Tyskland och Nederländerna</span></div>
+  <h2>Automationsbias: när AI har fel, <span class="hl">får vi också fel</span></h2>
+  <p class="body">27 radiologer bedömde mammografier med AI-förslag. I 12 av 40 fall var förslaget avsiktligt fel.</p>
+  <div class="chart" data-vt="vt-trap" id="chBias"></div>
+  <p class="body">Även bland de mest erfarna sjönk andelen rätt från 82 till 46 procent när AI föreslog fel kategori.</p>
+</section>
+
+<section class="slide" id="deskilling" data-title="Avkompetensering" data-src="budzyn">
+  <div class="slide-head"><span>4.4 · Fälla</span><span>Polen · observationsstudie</span></div>
+  <h2>Avkompetensering: <span class="hl">sämre utan AI</span> efter att ha vant sig vid den</h2>
+  <p class="body">19 erfarna endoskopister vid fyra centrum. Andelen koloskopier utan AI där adenom upptäcktes, före och efter att AI-stöd infördes.</p>
+  <div class="chart" data-vt="vt-trap" id="chDeskill"></div>
+  <div class="note-box">Observationsstudie, så andra faktorer kan ha påverkat. Författarna efterlyser studier på mindre erfarna läkare, alltså en grupp som liknar ST-läkare.</div>
+</section>
+
+<section class="slide" id="bean" data-title="Språkmodeller och allmänheten" data-src="bean">
+  <div class="slide-head"><span>4.5 · Fälla</span><span>Storbritannien · randomiserad</span></div>
+  <h2>Modellen kan svaret. <span class="hl">Användaren får inte fram det.</span></h2>
+  <p class="body">1 298 personer fick tio medicinska scenarier och lottades till en språkmodell eller till vanlig informationssökning.</p>
+  <div class="chart" data-vt="vt-trap" id="chBean"></div>
+  <p class="body">Deltagarna som använde en språkmodell klarade sig inte bättre än kontrollgruppen. Författarna drar slutsatsen att modellerna inte är redo att användas direkt i patientvård.</p>
+</section>
+
+<section class="slide" id="titta-forst" data-title="Titta själv först" data-src="sos_ai,lmv_varlden,smer">
+  <div class="slide-head"><span>4.6 · Socialstyrelsen, september 2026</span><span></span></div>
+  <h2><span class="hl">”Titta själv först, AI sedan”</span></h2>
+  <div class="cols">
+    <ul class="clean body">
+      <li>”En CE-märkt AI-produkt är ingen garanti för att den fungerar kliniskt korrekt i det specifika lokala sammanhanget.” Lokal validering och löpande kontroll behövs.</li>
+      <li>Det saknas en nationell översikt över vilka AI-system som används i klinisk drift.</li>
+      <li>Regionerna förlitar sig i hög grad på leverantörerna. Ingen av de intervjuade hade använt Läkemedelsverkets vägledning om AI.</li>
+      <li>Risk för överberoende, särskilt hos mindre erfarna läkare, och oklart ansvar när läkare och AI gör olika bedömningar.</li>
+    </ul>
+    <div class="body"><p>Förstudien gjordes med AI Sweden och Region Örebro län, med bröstcancerscreening som exempel. 15 personer i åtta regioner intervjuades.</p><p>Statens medicinsk-etiska råd (Smer) lyfter samma risker 2025: automationsbias, kompetensförlust och oklart ansvar.</p></div>
+  </div>
+</section>
+
+<!-- ============ PART 5 ============ -->
+<section class="slide part" id="del5" data-title="Del 5. Vad krävs?">
+  <div class="partno">Del 5</div>
+  <h2>Vad krävs av AI i vården?</h2>
+  <p class="lede">Vem säger vad, och varför?</p>
+</section>
+
+<section class="slide" id="oppna-data" data-title="Två sorters öppna data" data-src="di_leyr,leyr_vinnova,ehds_ec,ehds_reg_se,scb_tab6388">
+  <div class="slide-head"><span>5.1 · Öppna data</span><span>Samma ord, olika saker</span></div>
+  <h2>”Öppna data” betyder <span class="hl">två olika saker</span></h2>
+  <div class="cols">
+    <div class="excard"><span class="kicker">Aggregerad statistik</span><h3>Det den här presentationen bygger på</h3><p>SCB:s och Eurostats tabeller är öppna, fria och granskningsbara. De innehåller inga uppgifter om enskilda. Klicka på ”Visa källa och anrop” vid diagrammen för att se exakt vad som hämtats.</p></div>
+    <div class="excard"><span class="kicker">Uppgifter om enskilda patienter</span><h3>Det som regleras hårdast</h3><p>Journaldata får användas för forskning och utveckling bara med tillstånd. Regeringen har gett Socialstyrelsen i uppdrag att förbereda sig för att bli det organ som beviljar tillgång i Sverige. Data får inte användas för reklam eller för beslut som skadar individen, och patienten får säga nej.</p></div>
+  </div>
+  <div class="note-box"><b>Studieobjekt:</b> artikeln ”AI i vården kräver öppna system för att skapa verklig nytta” publicerades i Di Brand Studio, Dagens industris avdelning för betalt innehåll, och är finansierad av Leyr, ett bolag som säljer ett integrationslager för tillgång till hälsodata. Argumentet om öppna gränssnitt kan vara rimligt. Men vem tjänar på det, och på vilka villkor?</div>
+</section>
+
+<section class="slide" id="kallkritik" data-title="Källkritik: journal-AI" data-src="capio_pr,tandem_preprint,jama2026">
+  <div class="slide-head"><span>5.2 · Övning</span><span>Källkritik</span></div>
+  <h2>”Första europeiska storskaliga kliniska studien”</h2>
+  <p class="lede">Capio meddelade 2025 att AI-assistenten från Tandem Health minskar dokumentationstiden. Vad behöver du veta innan du tror på det?</p>
+  <div class="ex" id="srcEx"></div>
+</section>
+
+<section class="slide" id="who" data-title="Europa är inte redo" data-src="who_eu">
+  <div class="slide-head"><span>5.3 · WHO Europa</span><span>50 av 53 länder svarade</span></div>
+  <h2>Ansvarsfrågan är <span class="hl">olöst</span> i nästan hela Europa</h2>
+  <div class="stats">
+    <div class="stat"><span class="big">8 %</span><span class="lbl">av länderna har regler för vem som ansvarar när AI orsakar fel eller skada</span></div>
+    <div class="stat"><span class="big">86 %</span><span class="lbl">anger juridisk osäkerhet som det största hindret</span></div>
+    <div class="stat"><span class="big">64 %</span><span class="lbl">använder redan AI-stödd diagnostik, främst inom bild</span></div>
+  </div>
+  <p class="body">WHO Europas rapport ”Artificial Intelligence in Health: State of Readiness across the WHO European Region”, november 2025.</p>
+</section>
+
+<section class="slide" id="checklista" data-title="Checklista" data-src="sos_ai,smer,lmv_guide,osl_prop,aiact">
+  <div class="slide-head"><span>5.4 · Checklista</span><span>Bocka i för ett verktyg du känner till</span></div>
+  <h2>Innan du <span class="hl">litar på</span> ett AI-verktyg</h2>
+  <ul class="check" id="checklist"></ul>
+  <p class="progress" id="checkProg"></p>
+  <p class="src" style="border:0;padding:0">Sammanställd utifrån Socialstyrelsen (2026), Smer (2025), Läkemedelsverkets vägledning (2023), OSL och AI-förordningen. Dina bockar sparas bara i din egen webbläsare.</p>
+</section>
+
+<!-- ============ PART 6 ============ -->
+<section class="slide part" id="del6" data-title="Del 6. Diskussion">
+  <div class="partno">Del 6</div>
+  <h2>Diskussion</h2>
+  <p class="lede">Titta själv först.</p>
+</section>
+
+<section class="slide" id="disk6" data-title="Diskussion 6">
+  <div class="slide-head"><span>6.1 · Diskussion</span><span></span></div>
+  <h2>Ditt eget arbetsflöde</h2>
+  <ul class="questions">
+    <li>Föreställ dig ett verktyg som skulle passa in i ditt arbetsflöde i dag. Vad kan det göra?</li>
+    <li>Vad skulle du behöva veta om verktyget innan du litade på det kliniskt?</li>
+    <li>Är det skillnad på att använda ChatGPT privat och att använda det på arbetstid med patientrelaterade frågor?</li>
+  </ul>
+</section>
+
+<section class="slide" id="kallor" data-title="Källor">
+  <div class="slide-head"><span>Källförteckning</span><span>Kontrollerad 9 oktober 2026</span></div>
+  <h2>Källor</h2>
+  <p class="lede present-only">Alla källor, med länkar och etiketter för ursprung, finns i läsläget. Varje bild har också sina egna källor där.</p>
+  <div class="biblio" id="biblio"></div>
+</section>
+
+</main>
+
+<nav class="nav" aria-label="Bildnavigering">
+  <button class="btn" type="button" id="prevBtn" aria-label="Föregående bild">Föregående</button>
+  <div class="rail" id="rail" aria-label="Delar"></div>
+  <span class="count" id="count">1 / 1</span>
+  <button class="btn primary" type="button" id="nextBtn" aria-label="Nästa bild">Nästa</button>
+</nav>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+/* ---------------- SOURCES ---------------- */
+const S = {
+ turing1936:{g:"Forskning",j:"UK",t:"Turing AM. On computable numbers, with an application to the Entscheidungsproblem. Proc London Math Soc. 1937;s2-42(1):230-265 (inlämnad 1936).",u:"https://doi.org/10.1112/plms/s2-42.1.230"},
+ turing1950:{g:"Forskning",j:"UK",t:"Turing AM. Computing machinery and intelligence. Mind. 1950;59(236):433-460.",u:"https://doi.org/10.1093/mind/LIX.236.433"},
+ dartmouth:{g:"Forskning",j:"USA",t:"McCarthy J, Minsky M, Rochester N, Shannon C. A proposal for the Dartmouth summer research project on artificial intelligence. 1955.",u:"http://jmc.stanford.edu/articles/dartmouth/dartmouth.pdf"},
+ eliza:{g:"Forskning",j:"USA",t:"Weizenbaum J. ELIZA: a computer program for the study of natural language communication between man and machine. Commun ACM. 1966;9(1):36-45.",u:"https://doi.org/10.1145/365153.365168"},
+ dedombal:{g:"Forskning",j:"UK",t:"de Dombal FT, Leaper DJ, Staniland JR, McCann AP, Horrocks JC. Computer-aided diagnosis of acute abdominal pain. Br Med J. 1972;2(5804):9-13.",u:"https://doi.org/10.1136/bmj.2.5804.9"},
+ yu1979:{g:"Forskning",j:"USA",t:"Yu VL, Fagan LM, Wraith SM m.fl. Antimicrobial selection by a computer: a blinded evaluation by infectious diseases experts. JAMA. 1979;242(12):1279-1282. Även i Buchanan & Shortliffe (red.), Rule-Based Expert Systems, 1984, kap. 31.",u:"https://people.dbmi.columbia.edu/shortliffe/Buchanan-Shortliffe-1984/Chapter-31.pdf"},
+ heden:{g:"Forskning",j:"SE",t:"Hedén B. Analysis of electrocardiograms using artificial neural networks. Doktorsavhandling, Lunds universitet, 1996. Se även Hedén B m.fl., Circulation 1997.",u:"https://lup.lub.lu.se/record/28910"},
+ gulshan:{g:"Forskning",j:"USA",t:"Gulshan V m.fl. Development and validation of a deep learning algorithm for detection of diabetic retinopathy in retinal fundus photographs. JAMA. 2016;316(22):2402-2410.",u:"https://doi.org/10.1001/jama.2016.17216"},
+ esteva:{g:"Forskning",j:"USA",t:"Esteva A m.fl. Dermatologist-level classification of skin cancer with deep neural networks. Nature. 2017;542:115-118.",u:"https://doi.org/10.1038/nature21056"},
+ defauw:{g:"Forskning",j:"UK",t:"De Fauw J m.fl. Clinically applicable deep learning for diagnosis and referral in retinal disease. Nat Med. 2018;24:1342-1350.",u:"https://doi.org/10.1038/s41591-018-0107-6"},
+ masai2023:{g:"Forskning",j:"SE",t:"Lång K m.fl. Artificial intelligence-supported screen reading versus standard double reading in the Mammography Screening with Artificial Intelligence trial (MASAI). Lancet Oncol. 2023;24(8):936-944.",u:"https://doi.org/10.1016/S1470-2045(23)00298-X"},
+ masai2025:{g:"Forskning",j:"SE",t:"Hernström V m.fl. Screening performance and characteristics of breast cancer detected in the MASAI trial. Lancet Digit Health. 2025;7(3):e175-e183.",u:"https://doi.org/10.1016/S2589-7500(24)00267-X"},
+ masai2026:{g:"Forskning",j:"SE",t:"Gommers J m.fl. Interval cancer, sensitivity, and specificity comparing AI-supported mammography screening with standard double reading without AI in the MASAI study. Lancet. 2026.",u:"https://doi.org/10.1016/S0140-6736(25)02464-X"},
+ screentrust:{g:"Forskning",j:"SE",t:"Dembrower K, Crippa A, Colón E, Eklund M, Strand F. Artificial intelligence for breast cancer detection in screening mammography in Sweden: a prospective, population-based, paired-reader, non-inferiority study. Lancet Digit Health. 2023;5(10):e703-e711.",u:"https://doi.org/10.1016/S2589-7500(23)00153-X"},
+ dratsch:{g:"Forskning",j:"DE",t:"Dratsch T m.fl. Automation bias in mammography: the impact of artificial intelligence BI-RADS suggestions on reader performance. Radiology. 2023;307(4):e222176.",u:"https://doi.org/10.1148/radiol.222176"},
+ budzyn:{g:"Forskning",j:"PL",t:"Budzyń K m.fl. Endoscopist deskilling risk after exposure to artificial intelligence in colonoscopy: a multicentre, observational study. Lancet Gastroenterol Hepatol. 2025;10(10):896-903.",u:"https://doi.org/10.1016/S2468-1253(25)00133-5"},
+ bean:{g:"Forskning",j:"UK",t:"Bean AM m.fl. Reliability of LLMs as medical assistants for the general public: a randomized preregistered study. Nat Med. 2026.",u:"https://doi.org/10.1038/s41591-025-04074-y"},
+ lundell:{g:"Forskning",j:"SE",t:"Lundell B m.fl. Half a step behind: bulk disclosure of confidential data in third-party GenAI solutions under the Swedish Public Access to Information and Secrecy Act. Digital Government: Research and Practice. 2024.",u:"https://doi.org/10.1145/3673659"},
+ blease:{g:"Forskning",j:"UK",t:"Blease CR m.fl. Generative artificial intelligence in primary care: an online survey of UK general practitioners. BMJ Health Care Inform. 2024;31(1):e101102.",u:"https://informatics.bmj.com/content/31/1/e101102"},
+ longmagerko:{g:"Forskning",j:"USA",t:"Long D, Magerko B. What is AI literacy? Competencies and design considerations. Proceedings of CHI 2020. ACM.",u:"https://doi.org/10.1145/3313831.3376727"},
+ jama2026:{g:"Forskning",j:"USA",t:"Studie av AI-assistenter för journalföring vid fem amerikanska universitetssjukhus, 1 809 användare jämförda med 6 772 icke-användare. JAMA. 1 april 2026. Internationell jämförelse.",u:"https://doi.org/10.1001/jama.2026.2253"},
+ tandem_preprint:{g:"Forskning",j:"SE",t:"Impact of an AI medical scribe after 375 000 notes generated across care levels in a European health system. medRxiv 2025, preprint, ej granskad. Beställd av Tandem Health.",u:"https://www.medrxiv.org/content/10.64898/2025.12.06.25341757v1",flag:"Preprint"},
+ aiact:{g:"Lag och myndighet",j:"EU",t:"Förordning (EU) 2024/1689 om harmoniserade regler för artificiell intelligens (AI-förordningen).",u:"https://eur-lex.europa.eu/eli/reg/2024/1689/oj?locale=sv"},
+ omnibus:{g:"Lag och myndighet",j:"EU",t:"Förordning (EU) 2026/1744 om ändring av förordningarna (EU) 2024/1689, (EU) 2018/1139 och (EU) 2023/1230 (digital omnibus om AI). I kraft 27 juli 2026.",u:"https://eur-lex.europa.eu/eli/reg/2026/1744/oj?locale=sv"},
+ mdr:{g:"Lag och myndighet",j:"EU",t:"Förordning (EU) 2017/745 om medicintekniska produkter (MDR).",u:"https://eur-lex.europa.eu/eli/reg/2017/745/oj?locale=sv"},
+ gdpr:{g:"Lag och myndighet",j:"EU",t:"Förordning (EU) 2016/679, dataskyddsförordningen.",u:"https://eur-lex.europa.eu/eli/reg/2016/679/oj?locale=sv"},
+ ehds_reg:{g:"Lag och myndighet",j:"EU",t:"Förordning (EU) 2025/327 om ett europeiskt hälsodataområde (EHDS).",u:"https://eur-lex.europa.eu/eli/reg/2025/327/oj?locale=sv"},
+ ehds_ec:{g:"Lag och myndighet",j:"EU",t:"Europeiska kommissionen. European Health Data Space Regulation (EHDS).",u:"https://health.ec.europa.eu/ehealth-digital-health-and-care/european-health-data-space-regulation-ehds_en"},
+ ehds_reg_se:{g:"Lag och myndighet",j:"SE",t:"Regeringen. Tre myndigheter får nya uppdrag för att förbereda Sveriges arbete med hälsodata enligt EHDS. 26 juni 2026.",u:"https://regeringen.se/pressmeddelanden/2026/06/tre-myndigheter-far-nya-uppdrag-for-att-forbereda-sveriges-arbete-med-halsodata-enligt-ehds/"},
+ pdl:{g:"Lag och myndighet",j:"SE",t:"Patientdatalag (2008:355).",u:"https://www.riksdagen.se/sv/dokument-och-lagar/dokument/svensk-forfattningssamling/patientdatalag-2008355_sfs-2008-355/"},
+ osl:{g:"Lag och myndighet",j:"SE",t:"Offentlighets- och sekretesslag (2009:400).",u:"https://www.riksdagen.se/sv/dokument-och-lagar/dokument/svensk-forfattningssamling/offentlighets-och-sekretesslag-2009400_sfs-2009-400/"},
+ osl_prop:{g:"Lag och myndighet",j:"SE",t:"Prop. 2022/23:97 Sekretessgenombrott vid utlämnande för teknisk bearbetning eller teknisk lagring av uppgifter (10 kap. 2 a § OSL, i kraft 1 juli 2023).",u:"https://data.riksdagen.se/dokument/HA0397.html"},
+ psl:{g:"Lag och myndighet",j:"SE",t:"Patientsäkerhetslag (2010:659).",u:"https://www.riksdagen.se/sv/dokument-och-lagar/dokument/svensk-forfattningssamling/patientsakerhetslag-2010659_sfs-2010-659/"},
+ hsl:{g:"Lag och myndighet",j:"SE",t:"Hälso- och sjukvårdslag (2017:30), 3 kap. 1 §.",u:"https://www.riksdagen.se/sv/dokument-och-lagar/dokument/svensk-forfattningssamling/halso--och-sjukvardslag-201730_sfs-2017-30/"},
+ pts:{g:"Lag och myndighet",j:"SE",t:"Post- och telestyrelsen. AI-förordningen.",u:"https://pts.se/ai/ai-forordningen/"},
+ sou2025:{g:"Lag och myndighet",j:"SE",t:"SOU 2025:101 Anpassningar till AI-förordningen.",u:"https://www.riksdagen.se/sv/dokument-och-lagar/dokument/statens-offentliga-utredningar/anpassningar-till-ai-forordningen_hdb3101/html/"},
+ imyfaq:{g:"Lag och myndighet",j:"SE",t:"IMY. Vilken myndighet kommer övervaka AI-förordningen i Sverige? Uppdaterad 17 juni 2026.",u:"https://www.imy.se/vanliga-fragor-och-svar/vilken-myndighet-kommer-overvaka-ai-forordningen-i-sverige/"},
+ lmv_guide:{g:"Lag och myndighet",j:"SE",t:"Läkemedelsverket. Vägledning: användning av artificiell intelligens i svensk sjukvård. 2023.",u:"https://www.lakemedelsverket.se/4a5f16/globalassets/dokument/medicinteknik/artificiell-intelligens-ai/vagledning-anvandning-av-artificiell-intelligens-i-svensk-sjukvard.pdf"},
+ lmv_scribes:{g:"Lag och myndighet",j:"SE",t:"Läkemedelsverket. Läkemedelsverket granskar AI-assistenter i sjukvården. 4 mars 2026.",u:"https://www.lakemedelsverket.se/sv/nyheter/lakemedelsverket-granskar-ai-assistenter-i-sjukvarden"},
+ sos_ai:{g:"Lag och myndighet",j:"SE",t:"Socialstyrelsen. Ansvarsfull användning av AI i hälso- och sjukvården. Insikter och förslag från en förstudie med bröstcancerscreening som exempel. Art.nr 2026-9-10396, september 2026.",u:"https://www.socialstyrelsen.se/contentassets/1bff2db76fe14d0dbe33dff187de1df9/2026-9-10396.pdf"},
+ smer:{g:"Lag och myndighet",j:"SE",t:"Statens medicinsk-etiska råd. Kort om artificiell intelligens i hälso- och sjukvården. Smer 2025:1.",u:"https://smer.se/wp-content/uploads/2025/05/kort-om-ai-i-halso-och-sjukvarden-smer-2025_1.pdf"},
+ digg_imy:{g:"Lag och myndighet",j:"SE",t:"DIGG och IMY. Nationella riktlinjer för användningen av generativ AI inom offentlig förvaltning. 2025.",u:"https://www.imy.se/nyheter/nu-lanseras-nationella-riktlinjer-for-anvandningen-av-generativ-ai-inom-offentlig-forvaltning/"},
+ who_eu:{g:"Lag och myndighet",j:"INT",t:"WHO Europa. Artificial Intelligence in Health: State of Readiness across the WHO European Region. Pressmeddelande 19 november 2025.",u:"https://www.who.int/europe/news/item/19-11-2025-is-your-doctor-s-ai-safe"},
+ rjl1177:{g:"Vården",j:"SE",t:"Region Jönköpings län. 1177 direkt för vårdcentral och filial, rekommendation, version 11.0, gäller från 1 april 2026.",u:"https://folkhalsaochsjukvard.rjl.se/api/evolution/pdf/b0dc6b67-6aaf-4599-966b-3d4de7aca1c0?pageid=144358&blockid=257906"},
+ uppsala_tal:{g:"Vården",j:"SE",t:"Region Uppsala. AI-baserad taligenkänning ska införas i Region Uppsala. 9 december 2025.",u:"https://regionuppsala.se/politik-och-paverkan/pressrum/2025/december/ai-baserad-taligenkanning-ska-inforas-i-region-uppsala/"},
+ vardkartan:{g:"Vården",j:"SE",t:"AI Sweden och Högskolan i Halmstad. Vårdkartan: en kartläggning av svenska regioners AI-initiativ. April 2025.",u:"https://www.ai.se/sites/default/files/2025-04/vardkartan-rapport-april-2025-v2.pdf"},
+ svea:{g:"Vården",j:"SE",t:"AI Sweden. Svea: en gemensam digital assistent för offentlig sektor.",u:"https://www.ai.se/sv/projekt/svea-en-gemensam-digital-assistent-offentlig-sektor"},
+ svea_openai:{g:"Vården",j:"SE",t:"AI Sweden. AI Sweden i samarbete med OpenAI utvärderar unika öppna modeller. 5 augusti 2025.",u:"https://www.ai.se/sv/nyheter/ai-sweden-i-samarbete-med-openai-utvarderar-unika-oppna-modeller"},
+ gbg_svea:{g:"Vården",j:"SE",t:"Göteborgsregionens innovationsarena. Framåt tillsammans med AI-assistenten Svea. 2025.",u:"https://innovationsarena.goteborgsregionen.se/sa-anvander-vi-ai-assistenten-svea/"},
+ slf2024:{g:"Vården",j:"SE",t:"Sveriges läkarförbund. Det saknas tydliga regler för hur och när AI kan användas i vården. 2 oktober 2024.",u:"https://slf.se/nyheter/det-saknas-tydliga-regler-for-ai-i-varden/"},
+ lt_slf2024:{g:"Nyheter",j:"SE",t:"Läkartidningen. Många läkare använder AI i jobbet, men förbundet varnar för risker. 2 oktober 2024.",u:"https://lakartidningen.se/nyheter/manga-lakare-anvander-ai-i-jobbet-men-forbundet-varnar-for-risker/"},
+ slf2025:{g:"Vården",j:"SE",t:"Sveriges läkarförbund. Regioner saknar riktlinjer för AI i vården. 26 juni 2025.",u:"https://slf.se/nyheter/regioner-saknar-riktlinjer-for-ai-i-varden/"},
+ capio_pr:{g:"Vården",j:"SE",t:"Capio. Första europeiska storskaliga kliniska studien visar att AI-assistenter minskar dokumentationstiden. Pressmeddelande 2025.",u:"https://www.capio.se/nyheter-pressrum/nyhetsarkiv/forsta-europeiska-storskaliga-kliniska-studien-visar-att-ai-assistenter-minskar-dokumentationstiden--efter-375-000-skapade-journalanteckningar/"},
+ dan:{g:"Vården",j:"SE",t:"Disciplinärende vid svenskt lärosäte, 2025. Anonymiserat."},
+ lt_tillsyn2023:{g:"Nyheter",j:"SE",t:"Läkartidningen. Läkemedelsverket startar tillsyn av 1177:s chattbot efter avvikelser. Oktober 2023.",u:"https://lakartidningen.se/aktuellt/nyheter/2023/10/lakemedelsverket-startar-tillsyn-av-1177s-chattbot-efter-avvikelser/"},
+ lt_debatt2024:{g:"Nyheter",j:"SE",t:"Läkartidningen. Debatten om 1177:s chattbot och automatisk triagering intensifieras. Juli 2024.",u:"https://lakartidningen.se/aktuellt/nyheter/2024/07/debatten-om-1177s-chattbot-och-automatisk-triagering-intensifieras/"},
+ lt_ostergotland:{g:"Nyheter",j:"SE",t:"Läkartidningen. 1177 Direkt startas åter i Östergötland. 29 januari 2025.",u:"https://lakartidningen.se/nyheter/1177-direkt-startas-ater-i-ostergotland/"},
+ lt_uppsala_kalmar:{g:"Nyheter",j:"SE",t:"Läkartidningen. Nya anmälningar kopplade till 1177:s chattbot: kan inte läsa fritextsvar. 24 mars 2025.",u:"https://lakartidningen.se/aktuellt/nyheter/2025/03/nya-anmalningar-kopplade-till-1177s-chattbot-kan-inte-lasa-fritextsvar"},
+ umu_rct:{g:"Nyheter",j:"SE",t:"Läkartidningen. Resultatet kan påverka miljoner människors vårdsökande framöver (randomiserad studie av 1177 Direkt, Umeå universitet). 18 mars 2024.",u:"https://lakartidningen.se/nyheter/resultatet-kan-paverka-miljoner-manniskors-vardsokande-framover/"},
+ lt_aibot:{g:"Nyheter",j:"SE",t:"Läkartidningen. AI-bot misstänks ha använts i journalen, läkare Ivo-anmäls. 14 mars 2025.",u:"https://lakartidningen.se/nyheter/ai-bot-misstanks-ha-anvants-i-journalen-lakare-ivo-anmals/"},
+ svt_helsingborg:{g:"Nyheter",j:"SE",t:"SVT. Läkare i Helsingborg använde AI, anmäls till IVO. 2 mars 2025.",u:"https://www.svt.se/nyheter/lokalt/helsingborg/lakare-i-helsingborg-anvande-ai-anmals-till-ivo"},
+ svt_jamtland:{g:"Nyheter",j:"SE",t:"SVT. Även Jämtland stoppade Platform24. 5 oktober 2023.",u:"https://www.svt.se/nyheter/lokalt/jamtland/aven-jamtland-stoppade-platform24-finns-en-overtro-att-systemet-kan-hitta-lagsta-acceptabla-vardniva"},
+ svt_skane2020:{g:"Nyheter",j:"SE",t:"SVT. Region Skånes nya digitala verktyg saknade registrering hos Läkemedelsverket. 25 juli 2020.",u:"https://www.svt.se/nyheter/lokalt/skane/region-skane-nya-digitala-verktyg-saknade-godkannande-av-lakemedelsverket"},
+ lmv_varlden:{g:"Nyheter",j:"SE",t:"Läkemedelsvärlden. Socialstyrelsen: Vården saknar kontroll över AI-systemen. 17 september 2026.",u:"https://www.lakemedelsvarlden.se/socialstyrelsen-varden-saknar-kontroll-over-ai-systemen/"},
+ di_leyr:{g:"Nyheter",j:"SE",t:"Di Brand Studio (annons, finansierad av Leyr). AI i vården kräver öppna system för att skapa verklig nytta.",u:"https://www.di.se/brandstudio/ai-i-varden-kraver-oppna-system-for-att-skapa-verklig-nytta/",flag:"Annons"},
+ leyr_vinnova:{g:"Nyheter",j:"SE",t:"Vinnova. Leyr: unified integration layer to enable access to health data. Projekt 2022-02232.",u:"https://www.vinnova.se/en/p/leyr---unified-integrationlayer-to-enable-access-to-health-data"},
+ claude:{g:"Data",j:"INT",t:"Svaren i övningen är skrivna av AI-modellen Claude (Anthropic) för den här presentationen, oktober 2026."},
+ scb_tab6388:{g:"Data",j:"SE",t:"SCB. Användning av generativa AI-verktyg. År 2024-2026 (TAB6388, Befolkningens it-användning LE0108). Uppdaterad 5 oktober 2026, hämtad via PxWebApi 2.0 den 9 oktober 2026.",u:"https://www.statistikdatabasen.scb.se/pxweb/sv/ssd/"},
+ scb_news2025:{g:"Data",j:"SE",t:"SCB. Befolkningens it-användning 2025. Statistiknyhet 17 oktober 2025.",u:"https://www.scb.se/hitta-statistik/statistik-efter-amne/forskning-och-det-digitala-samhallet/det-digitala-samhallet/befolkningens-it-anvandning/pong/statistiknyhet/befolkningens-it-anvandning-2025/"},
+ eurostat_iaiu:{g:"Data",j:"EU",t:"Eurostat. Individuals: use of generative AI tools (isoc_ai_iaiu). Uppdaterad 5 juni 2026, hämtad 9 oktober 2026.",u:"https://ec.europa.eu/eurostat/databrowser/view/isoc_ai_iaiu/default/table"}
+};
+const ORDER_G = ["Forskning","Lag och myndighet","Vården","Nyheter","Data"];
+const G_LABEL = {"Forskning":"Granskad forskning (och en preprint)","Lag och myndighet":"Lagstiftning och myndigheter","Vården":"Källor från vården och offentlig sektor","Nyheter":"Nyheter och studieobjekt","Data":"Statistik, API:er och övrigt"};
+const chip = j => `<span class="chip ${j}">${j==="INT"?"INT":j}</span>`;
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function srcItem(id){const s=S[id]; if(!s) return ""; return `<li>${chip(s.j)} ${esc(s.t)}${s.flag?`<span class="flag">${s.flag}</span>`:""}${s.u?` <a href="${s.u}" target="_blank" rel="noopener">Länk</a>`:""}</li>`;}
+
+/* ---------------- DATA (fetched 2026-10-09) ---------------- */
+const SCB = {
+ updated:"2026-10-05", fetched:"2026-10-09",
+ ageLabels:["16-24","25-34","35-44","45-54","55-64","65-74","75-85"],
+ gen:{2024:[55,40,33,23,11,4,null],2025:[67,58,49,43,23,7,5],2026:[71,62,62,57,42,20,12]},
+ genMoe:{2024:[4,5,4,3,2,1,null],2025:[4,5,5,4,3,1,2],2026:[4,5,4,4,3,2,3]},
+ tot:{2024:25,2025:37,2026:47},
+ health:{age:{labels:["16-24","25-34","35-44","45-54","55-64","65-74","75-85"],v:[35,34,31,24,17,9,5],m:[4,4,4,3,2,2,2]},
+   edu:{labels:["Förgymnasial","Gymnasial","Eftergymnasial"],v:[19,18,31],m:[3,2,2]},
+   inc:{labels:["Lägsta femtedelen","Högsta femtedelen"],v:[22,28],m:[4,2]},
+   sex:{labels:["Män","Kvinnor","Samtliga 16+"],v:[22,24,23],m:[2,2,1]}}
+};
+const EU = {updated:"2026-06-05",fetched:"2026-10-09",
+ rows:[["Norge","NO",56.32],["Danmark","DK",48.44],["Schweiz","CH",47.02],["Estland","EE",46.64],["Malta","MT",46.46],["Finland","FI",46.27],["Irland","IE",44.93],["Kosovo","XK",44.85],["Nederländerna","NL",44.7],["Cypern","CY",44.2],["Grekland","EL",44.09],["Luxemburg","LU",42.54],["Sverige","SE",42.01],["Belgien","BE",42.01],["Österrike","AT",39.42],["Portugal","PT",38.7],["Spanien","ES",37.88],["Slovenien","SI",37.56],["Frankrike","FR",37.46],["Litauen","LT",36.89],["Tjeckien","CZ",35.35],["Lettland","LV",33.4],["EU-27","EU27_2020",32.66],["Tyskland","DE",32.25],["Slovakien","SK",30.79],["Ungern","HU",29.56],["Kroatien","HR",27.52],["Albanien","AL",27.28],["Polen","PL",22.68],["Bulgarien","BG",22.5],["Nordmakedonien","MK",22.03],["Bosnien och Hercegovina","BA",20.26],["Italien","IT",19.86],["Serbien","RS",18.64],["Rumänien","RO",17.76],["Turkiet","TR",17.19]],
+ nord:["NO","DK","FI","SE","EU27_2020"]};
+const DS = {
+ tab6388:{title:"SCB, TAB6388: Använt generativa AI-verktyg, andel i procent med felmarginal",upd:"Uppdaterad av SCB 5 oktober 2026 · hämtad 9 oktober 2026",
+   url:"https://statistikdatabasen.scb.se/api/v2/tables/TAB6388/data?lang=sv&valueCodes[AnvInternet]=1280,1287&valueCodes[Kon]=1%2B2&valueCodes[Redovisningsgrupp]=16-24,25-34,35-44,45-54,55-64,65-74,75-85,tot16%2B&valueCodes[Tid]=*&valueCodes[ContentsCode]=000007L5,000007LA&outputFormat=html"},
+ tab6388health:{title:"SCB, TAB6388: Använt AI för att söka information om hälsa och välmående (kod 1287), 2026",upd:"Uppdaterad av SCB 5 oktober 2026 · hämtad 9 oktober 2026",
+   url:"https://statistikdatabasen.scb.se/api/v2/tables/TAB6388/data?lang=sv&valueCodes[AnvInternet]=1287&valueCodes[Kon]=1%2B2&valueCodes[Redovisningsgrupp]=16-24,25-34,35-44,45-54,55-64,65-74,75-85,forgymn,gymn,eftergymn,kvint1,kvint5,tot16%2B&valueCodes[Tid]=2026&valueCodes[ContentsCode]=000007L5,000007LA&outputFormat=html"},
+ eurostat:{title:"Eurostat, isoc_ai_iaiu: Use of generative AI tools in the last 3 months, % of individuals 16-74, 2025",upd:"Uppdaterad av Eurostat 5 juni 2026 · hämtad 9 oktober 2026",
+   url:"https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/isoc_ai_iaiu?format=JSON&lang=en&indic_is=I_IUAI&unit=PC_IND&ind_type=IND_TOTAL&time=2025"}
+};
+document.querySelectorAll(".datasrc[data-ds]").forEach(el=>{const d=DS[el.dataset.ds];
+ el.innerHTML=`<details><summary>Visa källa och anrop</summary><div style="margin-top:6px">${esc(d.title)}. ${esc(d.upd)}.<code>${esc(d.url)}</code><a href="${d.url}" target="_blank" rel="noopener">Öppna anropet hos myndigheten</a> (visar dagens siffror)</div></details>`;});
+
+/* ---------------- CHART ENGINE ---------------- */
+const NS="http://www.w3.org/2000/svg";
+const tip=document.getElementById("tip");
+function showTip(e,txt){tip.textContent=txt;tip.hidden=false;const x=Math.min(e.clientX+12,innerWidth-270);tip.style.left=x+"px";tip.style.top=(e.clientY+14)+"px";}
+function hideTip(){tip.hidden=true;}
+function el(tag,attrs,parent){const n=document.createElementNS(NS,tag);for(const k in attrs)n.setAttribute(k,attrs[k]);if(parent)parent.appendChild(n);return n;}
+function fmt(v,dec){return dec?(Math.round(v*10)/10).toFixed(1).replace(".",","):String(Math.round(v));}
+let chartSeq=0;
+function hatchDefs(svg){const id="hatch"+(++chartSeq);const d=el("defs",{},svg);
+  const p=el("pattern",{id,width:8,height:8,patternUnits:"userSpaceOnUse",patternTransform:"rotate(45)"},d);
+  el("rect",{width:8,height:8,fill:"var(--s2)","fill-opacity":".28"},p);el("rect",{width:3.2,height:8,fill:"var(--s2)"},p);return id;}
+const SW={solid:c=>`background:${c}`,hatch:()=>`background:repeating-linear-gradient(45deg,var(--s2) 0 3px,color-mix(in srgb,var(--s2) 28%,transparent) 3px 8px)`};
+function legend(container,series){if(series.length<2)return;const lg=document.createElement("div");lg.className="legend";
+  lg.innerHTML=series.map(s=>`<span><i style="${s.hatch?SW.hatch():SW.solid(s.color)}"></i>${esc(s.name)}</span>`).join("");container.appendChild(lg);}
+function roundTop(x,y0,top,bw){const r=Math.min(4,bw/2,Math.max(0,y0-top));return `M${x},${y0} V${top+r} Q${x},${top} ${x+r},${top} H${x+bw-r} Q${x+bw},${top} ${x+bw},${top+r} V${y0} Z`;}
+
+/* vertical bars. groups=[{label,values,moe?}], series=[{name,color,hatch?}] */
+function vbars(container,{groups,series,max=100,unit=" %",h=280,decimals=false,ticks,emph=null}){
+  const W=760,H=h,ml=40,mr=8,mt=26,mb=40,iw=W-ml-mr,ih=H-mt-mb;
+  container.innerHTML="";const svg=el("svg",{viewBox:`0 0 ${W} ${H}`,role:"img",class:"pre"},container);const hid=hatchDefs(svg);
+  const y=v=>mt+ih-(v/max)*ih;
+  ticks=ticks||(max<=50?[0,10,20,30,40,50].filter(t=>t<=max):max<=100?[0,25,50,75,100]:[0,max/4,max/2,3*max/4,max]);
+  const ag=el("g",{class:"axis"},svg);
+  ticks.forEach(t=>{el("line",{x1:ml,x2:W-mr,y1:y(t),y2:y(t),class:"gridline"},ag);const tx=el("text",{x:ml-8,y:y(t)+4,"text-anchor":"end"},ag);tx.textContent=t;});
+  el("line",{x1:ml,x2:W-mr,y1:y(0),y2:y(0),class:"base"},svg);
+  const gw=iw/groups.length,ns=series.length,bw=Math.min(110,(gw*.72-(ns-1)*3)/ns),gap=3;
+  const pos=[];let bi=0;
+  groups.forEach((g,gi)=>{const tot=ns*bw+(ns-1)*gap,gx=ml+gi*gw+(gw-tot)/2;pos[gi]=[];
+    g.values.forEach((v,si)=>{const x=gx+si*(bw+gap);pos[gi][si]={x,bw,v,top:v==null?y(0):y(v)};
+      if(v==null){const t=el("text",{x:x+bw/2,y:y(0)-6,"text-anchor":"middle",class:"muted"},svg);t.textContent="..";return;}
+      const s=series[si];const isE=emph&&emph(gi,si);
+      const p=el("path",{d:roundTop(x,y(0),y(v),bw),fill:s.hatch?`url(#${hid})`:s.color,class:"bar"+(isE?" emph":""),style:`--bi:${bi}`},svg);
+      if(s.hatch)p.setAttribute("stroke","var(--s2)");
+      const lab=el("text",{x:x+bw/2,y:y(v)-8,"text-anchor":"middle","font-weight":"700",class:"val",style:`--bi:${bi}`,"data-v":v,"data-dec":decimals?1:0},svg);lab.textContent=decimals?fmt(v,1):Math.round(v);
+      const hit=el("rect",{x:x-2,y:mt,width:bw+4,height:ih,fill:"transparent"},svg);const moe=g.moe&&g.moe[si]!=null?` (±${g.moe[si]})`:"";
+      hit.addEventListener("mousemove",e=>showTip(e,`${g.label} · ${s.name}: ${decimals?fmt(v,1):v}${unit}${moe}`));hit.addEventListener("mouseleave",hideTip);bi++;});
+    const gl=el("text",{x:ml+gi*gw+gw/2,y:H-mb+20,"text-anchor":"middle",class:"glabel"},svg);gl.textContent=g.label;});
+  legend(container,series);
+  const an=el("g",{class:"annot"},svg);
+  return {svg,y,pos,an,W,H,mt,ih,ml,mr,gw};
+}
+/* annotation: vertical bracket with label */
+function bracket(api,x,yA,yB,label,{side="right",cls=""}={}){const g=el("g",{class:"brk "+cls},api.an);const d=side==="right"?1:-1;
+  el("path",{d:`M${x},${yA} h${6*d} V${yB} h${-6*d}`,fill:"none",stroke:"var(--signal)","stroke-width":2,pathLength:1,class:"draw"},g);
+  const t=el("text",{x:x+12*d,y:(yA+yB)/2+5,"text-anchor":side==="right"?"start":"end","font-weight":"800",class:"anntext"},g);t.textContent=label;return g;}
+function hline(api,yv,label,{x1,x2}={}){const g=el("g",{class:"brk"},api.an);const yy=api.y(yv);
+  el("line",{x1:x1??api.ml,x2:x2??api.W-api.mr,y1:yy,y2:yy,stroke:"var(--signal)","stroke-width":2,"stroke-dasharray":"6 5",pathLength:1,class:"drawdash"},g);
+  const t=el("text",{x:(x2??api.W-api.mr),y:yy-8,"text-anchor":"end","font-weight":"800",class:"anntext"},g);t.textContent=label;return g;}
+
+/* horizontal bars, fixed height */
+function hbars(container,{rows,max=100,unit=" %",lw=170}){
+  const W=760,mt=6,H=380,rh=(H-mt-8)/rows.length,fs=Math.min(16,rh*.62);container.innerHTML="";
+  const svg=el("svg",{viewBox:`0 0 ${W} ${H}`,role:"img",class:"pre"},container);const hid=hatchDefs(svg);const iw=W-lw-150;const an=el("g",{class:"annot"},svg);
+  rows.forEach((r,i)=>{const yy=mt+i*rh,w=Math.max(2,r.v/max*iw);
+    const t=el("text",{x:lw-10,y:yy+rh/2+fs*.35,"text-anchor":"end","font-weight":r.hl?"800":"400","font-size":fs},svg);t.textContent=r.label;
+    const rc=el("rect",{x:lw,y:yy+rh*.16,width:w,height:rh*.68,rx:Math.min(4,rh*.2),fill:r.hatch?`url(#${hid})`:(r.hl?"var(--s1)":"var(--other)"),class:"hbar"+(r.hl?" emph":""),style:`--bi:${i}`},svg);
+    if(r.hatch)rc.setAttribute("stroke","var(--s2)");
+    const v=el("text",{x:lw+w+8,y:yy+rh/2+fs*.35,"font-weight":r.hl||r.hatch?"800":"400","font-size":fs,class:"val",style:`--bi:${i}`,"data-v":r.v,"data-dec":1},svg);v.textContent=fmt(r.v,1)+unit;
+    if(r.note){const n=el("text",{x:lw+w+70,y:yy+rh/2+fs*.35,"font-size":fs,"font-weight":"800",class:"anntext"},an);n.textContent=r.note;}
+    const hit=el("rect",{x:0,y:yy,width:W,height:rh,fill:"transparent"},svg);hit.addEventListener("mousemove",e=>showTip(e,`${r.label}: ${fmt(r.v,1)}${unit}`));hit.addEventListener("mouseleave",hideTip);});
+  return {svg};
+}
+
+/* play: bars grow (staggered), values count up, annotations draw in */
+function play(svg){if(!svg)return;if(svg.dataset.locked){svg.classList.add("pre");svg.classList.remove("done");return;}if(RMQ.matches){svg.classList.remove("pre");svg.classList.add("done");return;}
+  svg.classList.add("noanim","pre");svg.classList.remove("done");void svg.getBoundingClientRect();svg.classList.remove("noanim");
+  if(svg.dataset.locked)return;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{svg.classList.remove("pre");
+    svg.querySelectorAll(".val[data-v]").forEach(t=>{const target=+t.dataset.v,dec=t.dataset.dec==="1",suf=t.textContent.replace(/^[\d,.\s]+/,"");const delay=(+getComputedStyle(t).getPropertyValue("--bi")||0)*70+250;
+      const t0=performance.now()+delay;const step=now=>{const k=Math.min(1,Math.max(0,(now-t0)/800));const e=1-Math.pow(1-k,3);t.textContent=(dec?fmt(target*e,1):Math.round(target*e))+(suf&&!/^\d/.test(suf)?suf:"");if(k<1)requestAnimationFrame(step);};requestAnimationFrame(step);});
+    setTimeout(()=>svg.classList.add("done"),900);}));}
+const RMQ={get matches(){return document.documentElement.classList.contains("calm");}};
+function growIn(svg){play(svg);}
+
+/* ---------------- QUIZ ---------------- */
+const QUIZ=[
+ {p:"Beskriv doften av en vårdcentral klockan 08.00 en måndag.",a:"Handsprit och nybryggt kaffe, blöta ytterkläder i väntrummet och en svag ton av rengöringsmedel från golvet som just torkats. Någon har tagit med sig kylan in från parkeringen."},
+ {p:"Vad menas med tyst kunskap i vården?",a:"Det man kan men inte riktigt kan förklara. Som när en erfaren sjuksköterska säger att patienten ”inte ser bra ut” innan något värde har ändrats, och har rätt."},
+ {p:"Skriv en haiku om patientsäkerhet.",a:"Två kontroller till\ninnan läkemedlet ges.\nNågon sover tryggt."},
+ {p:"En AI föreslår att en äldre patient ska prioriteras lägre på grund av låg återhämtningsprognos. Hur reagerar du?",a:"Jag vill veta vad prognosen bygger på och om modellen i praktiken väger in åldern. Ett beslut om prioritering måste någon med ansvar kunna motivera för patienten."}];
+document.getElementById("quiz").innerHTML=QUIZ.map((q,i)=>`<div class="qcard"><span class="prompt">${esc(q.p)}</span><blockquote>${esc(q.a).replace(/\n/g,"<br>")}</blockquote><div class="reveal-row"><button class="btn" type="button" data-q="${i}">Visa vem som skrev</button><span class="verdict" id="qv${i}" hidden>En AI-modell</span></div></div>`).join("");
+document.getElementById("quiz").addEventListener("click",e=>{const b=e.target.closest("button[data-q]");if(!b)return;document.getElementById("qv"+b.dataset.q).hidden=false;b.hidden=true;});
+
+/* ---------------- TIMELINE ---------------- */
+const TL=[
+ [1936,"Alan Turing beskriver en abstrakt maskin som kan utföra alla beräkningar som går att beskriva steg för steg. Den blir grunden för den moderna datorn.","INT","forskning","turing1936"],
+ [1950,"Turing föreslår imitationsspelet, senare kallat Turingtestet.","INT","forskning","turing1950"],
+ [1955,"Termen <i>artificial intelligence</i> myntas i förslaget till sommarprojektet i Dartmouth, som genomförs 1956.","INT","forskning","dartmouth"],
+ [1966,"ELIZA, Joseph Weizenbaums samtalsprogram, ger användare en illusion av förståelse genom enkel mönstermatchning.","INT","forskning","eliza"],
+ [1972,"<b>Leeds:</b> datorstödd diagnostik av akut buksmärta hos 304 patienter. Datorn hade rätt i 91,8 % av fallen, den mest erfarna klinikern i 79,6 %.","INT","klinik","dedombal"],
+ [1979,"<b>MYCIN</b> utvärderas i efterhand på tio fall av meningit. 65 % av förslagen bedöms godtagbara, mot 42,5 till 62,5 % för lärarna vid Stanford. Systemet används aldrig kliniskt.","INT","klinik","yu1979"],
+ [1996,"<b>Lund:</b> avhandling om neurala nätverk för EKG-tolkning. Året efter visar gruppen i Circulation att nätverk kan upptäcka akut hjärtinfarkt i 12-avlednings-EKG.","SE","forskning","heden"],
+ [2016,"Djupinlärning upptäcker diabetesretinopati i näthinnebilder (JAMA).","INT","forskning","gulshan"],
+ [2017,"Ett neuralt nätverk klassificerar hudcancer lika bra som dermatologer (Nature).","INT","forskning","esteva"],
+ [2017,"EU antar förordningen om medicintekniska produkter, MDR. Den tillämpas från maj 2021 och omfattar programvara med medicinskt syfte.","EU","reglering","mdr"],
+ [2018,"DeepMind och Moorfields Eye Hospital: djupinlärning för remissbeslut vid näthinnesjukdom (Nat Med).","INT","forskning","defauw"],
+ [2021,"<b>MASAI</b> (Lund) och <b>ScreenTrustCAD</b> (Stockholm) börjar studera AI i mammografiscreening.","SE","forskning","masai2023"],
+ [2022,"ChatGPT släpps för allmänheten i november.","INT","forskning",""],
+ [2023,"Läkemedelsverket inleder tillsyn av 1177:s triagechattbot efter avvikelser.","SE","reglering","lt_tillsyn2023"],
+ [2024,"AI-förordningen träder i kraft 1 augusti.","EU","reglering","aiact"],
+ [2025,"Förbuden och kravet på AI-kunnighet börjar gälla 2 februari. EHDS träder i kraft 26 mars.","EU","reglering","ehds_ec"],
+ [2025,"Läkarförbundet: 8 av 18 regioner har en policy för AI-användning.","SE","klinik","slf2025"],
+ [2026,"<b>MASAI:</b> slutresultaten publiceras i The Lancet. Läkemedelsverket granskar AI-assistenter för journalföring. Omnibusförordningen skjuter upp högriskkraven. Socialstyrelsen publicerar en förstudie om ansvarsfull AI.","SE","klinik","masai2026"],
+ [2027,"2 december: högriskkraven för fristående AI-system (bilaga III) börjar gälla.","EU","reglering","omnibus"],
+ [2028,"2 augusti: högriskkraven för AI i produkter som omfattas av bland annat MDR börjar gälla.","EU","reglering","omnibus"],
+ [2029,"Mars: huvuddelarna av EHDS börjar tillämpas, bland annat tillstånd för sekundär användning av journaldata.","EU","reglering","ehds_ec"]
+];
+const tlEls=[document.getElementById("tl"),document.getElementById("tl2")];
+const tlRow=r=>`<li data-geo="${r[2]}" data-kind="${r[3]}"><span class="yr${r[0]>2026?" future":""}">${r[0]}</span><span class="txt">${r[1]}<span class="tags">${chip(r[2])}<span class="chip kind">${r[3]}</span></span></span></li>`;
+tlEls[0].innerHTML=TL.filter(r=>r[0]<2020).map(tlRow).join("");tlEls[1].innerHTML=TL.filter(r=>r[0]>=2020).map(tlRow).join("");
+let tlGeo="all",tlKind="all";
+function segBind(id,cb){const seg=document.getElementById(id);seg.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;seg.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b?"true":"false"));cb(b.dataset.v);});}
+function tlApply(){document.querySelectorAll(".tl li").forEach(li=>{li.hidden=!((tlGeo==="all"||li.dataset.geo===tlGeo)&&(tlKind==="all"||li.dataset.kind===tlKind));});}
+function segBindAll(cls,cb){document.querySelectorAll("."+cls).forEach(seg=>seg.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;document.querySelectorAll("."+cls+" button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.v===b.dataset.v?"true":"false"));cb(b.dataset.v);}));}
+segBindAll("tlGeo",v=>{tlGeo=v;tlApply();});segBindAll("tlKind",v=>{tlKind=v;tlApply();});
+
+/* ---------------- SCB AGE CHART + GUESS ---------------- */
+let yr="2026", revealed=false;
+const gR=document.getElementById("guessRange"),gO=document.getElementById("guessOut");
+let ageApi=null;
+function updateGuessResult(){const r=document.getElementById("guessResult");if(!r)return;
+  r.hidden=false;const show=revealed&&yr==="2026";r.style.visibility=show?"visible":"hidden";const g=+gR.value,a=SCB.gen["2026"][4],d=a-g;
+  r.innerHTML=`<span class="gr-k">Faktiskt</span><b>${a} %</b><span class="gr-k">Skillnad</span><b>${Math.abs(d)<=3?"nästan exakt":(d>0?"+":"−")+Math.abs(d)+" procentenheter"}</b>`;}
+function drawAge(){
+  const c=document.getElementById("chAge");
+  const groups=SCB.ageLabels.map((l,i)=>({label:l+" år",values:[SCB.gen[yr][i]],moe:[SCB.genMoe[yr][i]]}));
+  ageApi=vbars(c,{groups,series:[{name:"Använt generativ AI "+yr,color:"var(--s1)"}],emph:(gi)=>gi===4});
+  if(yr==="2026"){const p=ageApi.pos[4][0];const gy=ageApi.y(+gR.value);
+    const g=el("g",{class:"guess"},ageApi.svg);
+    el("line",{x1:p.x-14,x2:p.x+p.bw+14,y1:gy,y2:gy,stroke:"var(--signal)","stroke-width":3.5,"stroke-dasharray":"7 5",class:"guessline"},g);
+    el("circle",{cx:p.x-14,cy:gy,r:5,fill:"var(--signal)",class:"guessdot"},g);}
+  const svg=ageApi.svg;if(!revealed){svg.dataset.locked="1";}else{delete svg.dataset.locked;}
+  play(svg);
+  document.getElementById("totLine").textContent=revealed?SCB.tot[yr]+" %":"visas efter gissningen";updateGuessResult();
+}
+gR.addEventListener("input",()=>{gO.textContent=gR.value+" %";if(yr!=="2026"||!ageApi)return;
+  const gy=ageApi.y(+gR.value);const ln=ageApi.svg.querySelector(".guessline");ln.setAttribute("y1",gy);ln.setAttribute("y2",gy);
+  const dot=ageApi.svg.querySelector(".guessdot");if(dot)dot.setAttribute("cy",gy);updateGuessResult();});
+const guessBtn=document.getElementById("guessBtn");
+function setReveal(v){revealed=v;guessBtn.textContent=v?"Dölj siffrorna":"Visa SCB:s siffror";drawAge();}
+guessBtn.addEventListener("click",()=>setReveal(!revealed));
+segBind("yrSeg",v=>{yr=v;drawAge();});
+
+/* ---------------- EUROSTAT ---------------- */
+let euMode="nord";
+function drawEU(){const rows=EU.rows.filter(r=>euMode==="all"||EU.nord.includes(r[1])).map(r=>({label:r[0],v:r[2],hl:r[1]==="SE",hatch:r[1]==="EU27_2020",note:r[1]==="SE"&&euMode==="nord"?"lägst i Norden":(r[1]==="EU27_2020"?"EU-snittet":"")}));
+  const api=hbars(document.getElementById("chEU"),{rows,max:60,lw:200});play(api.svg);}
+segBind("euSeg",v=>{euMode=v;drawEU();});
+
+/* ---------------- HEALTH INFO ---------------- */
+let hMode="age";
+function drawHealth(){const d=SCB.health[hMode];const mx=Math.max(...d.v);
+  const api=vbars(document.getElementById("chHealth"),{groups:d.labels.map((l,i)=>({label:hMode==="age"?l+" år":l,values:[d.v[i]],moe:[d.m[i]]})),series:[{name:"Sökt hälsoinformation med AI, 2026",color:"var(--s1)"}],max:50,h:250,emph:gi=>d.v[gi]===mx});
+  if(hMode==="age"){const a=api.pos[0][0],b=api.pos[6][0];bracket(api,b.x+b.bw+10,a.top,b.top,"7 gånger så många",{});}
+  if(hMode==="edu"){const a=api.pos[1][0],b=api.pos[2][0];bracket(api,b.x+b.bw+10,a.top,b.top,"+13 procentenheter");}
+  play(api.svg);}
+segBind("hSeg",v=>{hMode=v;drawHealth();});
+
+/* ---------------- AI ACT TIMELINE (svg) ---------------- */
+function drawAct(){const c=document.getElementById("chAct");c.innerHTML="";
+ const ev=[["2024-08-01","I kraft",0],["2025-02-02","Förbud, AI-kunnighet",1],["2025-08-02","Generella AI-modeller",0],["2026-07-27","Omnibus i kraft",1],["2026-08-02","Transparens, art. 50",0],["2027-12-02","Högrisk, bilaga III",1],["2028-08-02","Högrisk i produkter (MDR)",0]];
+ const W=760,H=160,x0=20,x1=740,t0=Date.parse("2024-06-01"),t1=Date.parse("2028-12-31");const X=d=>x0+(Date.parse(d)-t0)/(t1-t0)*(x1-x0);
+ const svg=el("svg",{viewBox:`0 0 ${W} ${H}`,role:"img","aria-label":"AI-förordningens tillämpningsdatum",class:"pre"},c);
+ el("line",{x1:x0,x2:x1,y1:78,y2:78,class:"base axisdraw",pathLength:1},svg);
+ const nowx=X("2026-10-09");
+ el("rect",{x:x0,y:72,width:nowx-x0,height:12,rx:6,fill:"var(--accent)","fill-opacity":".18",class:"past"},svg);
+ ["2025","2026","2027","2028"].forEach(y=>{const x=X(y+"-01-01");el("line",{x1:x,x2:x,y1:73,y2:83,class:"base"},svg);const t=el("text",{x,y:100,"text-anchor":"middle",class:"muted"},svg);t.textContent=y;});
+ const ng=el("g",{class:"annot"},svg);el("line",{x1:nowx,x2:nowx,y1:60,y2:140,stroke:"var(--signal)","stroke-width":2,"stroke-dasharray":"3 3"},ng);const nt=el("text",{x:nowx+5,y:152,"font-weight":"800",class:"anntext"},ng);nt.textContent="i dag";
+ ev.forEach(([d,l,up],i)=>{const x=X(d);const hi=l.startsWith("Högrisk");const g=el("g",{class:"evt",style:`--bi:${i}`},svg);
+  el("circle",{cx:x,cy:78,r:hi?8:5.5,fill:hi?"var(--signal)":"var(--accent)",stroke:"var(--plate)","stroke-width":2.5,class:hi?"pulse":""},g);
+  const ty=up?50:116;const anchor=x>600?"end":(x<120?"start":"middle");const t=el("text",{x,y:up?ty-8:ty+4,"text-anchor":anchor,"font-weight":hi?"800":"500"},g);t.textContent=l;
+  const t2=el("text",{x,y:up?ty+8:ty+20,"text-anchor":anchor,class:"muted"},g);t2.textContent=new Date(d).toLocaleDateString("sv-SE",{day:"numeric",month:"short",year:"numeric"});});
+ play(svg);
+}
+
+/* ---------------- RESEARCH CHARTS ---------------- */
+function drawResearch(){
+ const A="var(--s1)";
+ let api=vbars(document.getElementById("chMasai"),{groups:[{label:"Upptäckta cancerfall",values:[338,262]}],series:[{name:"AI-stödd granskning",color:A},{name:"Dubbelgranskning utan AI",hatch:true}],max:400,unit:"",h:250});
+ {const a=api.pos[0][0],b=api.pos[0][1];bracket(api,b.x+b.bw+12,a.top,b.top,"+76 cancerfall, 29 % fler");}
+ api=vbars(document.getElementById("chScreen"),{groups:[{label:"Två radiologer",values:[250]},{label:"Två radiologer + AI",values:[269]},{label:"En radiolog + AI",values:[261]},{label:"Bara AI",values:[246]}],series:[{name:"Upptäckta cancerfall",color:A}],max:300,unit:"",h:250,ticks:[0,100,200,300],emph:gi=>gi===2});
+ hline(api,250,"Referens: två radiologer, 250");
+ api=vbars(document.getElementById("chBias"),{groups:[{label:"Oerfarna (11)",values:[79.7,19.8]},{label:"Medelerfarna (11)",values:[81.3,24.8]},{label:"Mycket erfarna (5)",values:[82.3,45.5]}],series:[{name:"Rätt när AI hade rätt",color:A},{name:"Rätt när AI hade fel",hatch:true}],decimals:true,h:270});
+ [["−59,9"],["−56,5"],["−36,8"]].forEach(([l],gi)=>{const a=api.pos[gi][0],b=api.pos[gi][1];bracket(api,b.x+b.bw+8,a.top,b.top,l);});
+ api=vbars(document.getElementById("chDeskill"),{groups:[{label:"Före AI (795 undersökningar)",values:[28.4]},{label:"Efter AI-exponering (648)",values:[22.4]}],series:[{name:"Adenomdetektion utan AI",color:A}],max:40,decimals:true,h:250,ticks:[0,10,20,30,40],emph:gi=>gi===1});
+ {const a=api.pos[0][0],b=api.pos[1][0];hline(api,28.4,"Nivå före AI",{x1:a.x,x2:b.x+b.bw+170});bracket(api,b.x+b.bw+12,a.top,b.top,"−6,0 procentenheter");}
+ api=vbars(document.getElementById("chBean"),{groups:[{label:"Rätt diagnos",values:[94.9,34.5]},{label:"Rätt åtgärd",values:[56.3,44.2]}],series:[{name:"Språkmodellen ensam",color:A},{name:"Människor med språkmodell (högst)",hatch:true}],decimals:true,h:260});
+ {const a=api.pos[0][0],b=api.pos[0][1];bracket(api,b.x+b.bw+12,a.top,b.top,"minst −60,4");const c=api.pos[1][0],d=api.pos[1][1];bracket(api,d.x+d.bw+12,c.top,d.top,"minst −12,1");}
+}
+
+/* ---------------- 1177 STEPPER ---------------- */
+const STEPS=[
+ {d:"Maj till juli 2020",t:"Skåne köper in Platform24",b:"Region Skåne köper verktyget under pandemin. SVT upptäcker att produkten inte är registrerad under sitt nya namn hos Läkemedelsverket. Ärendet avslutas utan sanktion, men myndigheten påminner om att registreringen måste uppdateras.",s:"svt_skane2020"},
+ {d:"Juni 2022",t:"Hjärtinfarkt får låg prioritet",b:"I Jämtland felbedömer systemet besvären hos en kvinna med pågående hjärtinfarkt. Ingen ringer upp. Hon kommer till akuten två dagar senare. Regionen gör en lex Maria-anmälan och pausar användningen. Chefläkaren: ”Det finns en övertro på att systemet kan hitta lägsta acceptabla vårdnivå.”",s:"svt_jamtland"},
+ {d:"Oktober 2023",t:"Läkemedelsverket inleder tillsyn",b:"Efter flera signaler startar Läkemedelsverket en tillsyn av triagechattboten i 1177 Direkt, som används av flera regioner.",s:"lt_tillsyn2023"},
+ {d:"Sommaren 2024 till januari 2025",t:"Östergötland pausar och startar om",b:"Region Östergötland stänger tjänsten efter felbedömningar och merarbete för vårdcentralerna. I januari 2025 beslutar nämnden att starta om, med bättre förankring i verksamheten.",s:"lt_ostergotland"},
+ {d:"Mars 2025",t:"Systemet kan inte läsa fritext",b:"Uppsala och Kalmar anmäler felaktiga triageringar. I Kalmar får en patient med andnöd i vila låg prioritet efter att ha skrivit att allmäntillståndet var gott. En sjuksköterska upptäcker felet. Regionens samordnande läkare: en sjuksköterska som litat helt på triagen, eller haft många andra ärenden, hade kanske inte läst ärendet samma dag.",s:"lt_uppsala_kalmar",q:"Vad hade du gjort med 40 ärenden i kön, när systemet säger låg prioritet?"},
+ {d:"April 2026",t:"Region Jönköpings län",b:"Regionens rutin för 1177 direkt (version 11) gäller från 1 april 2026: ärenden ska påbörjas samma dag, en koordinerande sjuksköterska bevakar och prioriterar, och avvikelser rapporteras i Synergi. En randomiserad studie från Umeå universitet och Mittuniversitetet jämför 1177 Direkt med telefonrådgivning. Finansieringen löper till 2027. Inget datum för resultat är satt.",s:"rjl1177"}
+];
+let stepI=0;
+const sl=document.getElementById("stepList"),sp=document.getElementById("stepPanel");
+sl.innerHTML=STEPS.map((s,i)=>`<li><button type="button" data-i="${i}"><span class="d">${s.d}</span>${esc(s.t)}</button></li>`).join("");
+document.getElementById("stepFull").innerHTML=STEPS.map(s=>`<li><span class="d">${s.d}</span><h3 style="font-size:18px;margin:2px 0 4px">${esc(s.t)}</h3><p>${esc(s.b)}</p>${s.q?`<p style="margin-top:6px"><b>Fråga:</b> ${esc(s.q)}</p>`:""}</li>`).join("");
+sp.innerHTML=STEPS.map((s,i)=>`<div class="sp" data-i="${i}"><span class="kicker">Steg ${i+1} av ${STEPS.length} · ${s.d}</span><h3>${esc(s.t)}</h3><p>${esc(s.b)}</p>${s.q?`<div class="note-box"><b>Fråga:</b> ${esc(s.q)}</div>`:""}<p class="src" style="border:0;padding:0">${S[s.s]?esc(S[s.s].t):""}</p><div class="opts"><button type="button" data-step="-1" ${i===0?"disabled":""}>Föregående steg</button><button type="button" data-step="1" ${i===STEPS.length-1?"disabled":""}>Nästa steg</button></div></div>`).join("");
+sp.addEventListener("click",e=>{const b=e.target.closest("button[data-step]");if(!b)return;stepI=Math.max(0,Math.min(STEPS.length-1,stepI+ +b.dataset.step));drawStep();});
+function drawStep(){sl.querySelectorAll("button").forEach((b,i)=>b.setAttribute("aria-current",i===stepI?"true":"false"));
+ sp.querySelectorAll(".sp").forEach((d,i)=>d.classList.toggle("on",i===stepI));}
+sl.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;stepI=+b.dataset.i;drawStep();});
+
+/* ---------------- HIGH-RISK EXERCISE ---------------- */
+const RISK=[
+ {s:"Ett AI-verktyg som planerar operationssalarnas schema.",a:"Inte högrisk",e:"Administrativt stöd utan medicinskt syfte faller normalt utanför både MDR och bilaga III. Dataskydd och informationssäkerhet gäller ändå."},
+ {s:"CE-märkt AI-stöd som granskar mammografier i screeningprogrammet.",a:"Högrisk",e:"En medicinteknisk produkt i en klass som kräver anmält organ. Den regleras redan i dag av MDR. AI-förordningens högriskkrav för sådana produkter gäller från 2 augusti 2028."},
+ {s:"En chattbot som bedömer hur brådskande patienters besvär är och styr dem till rätt vårdnivå, som 1177 Direkt.",a:"Beror på, sannolikt högrisk",e:"Bilaga III nämner triage av patienter i akut sjukvård, i samband med nödsamtal och utlarmning. Ett triageverktyg för primärvård är inte lika självklart där. Men ett verktyg med medicinskt syfte är normalt en medicinteknisk produkt, och då kan det bli högrisk via MDR-vägen."},
+ {s:"En AI-assistent som spelar in patientsamtalet och skriver ett journalutkast.",a:"Beror på",e:"Ren transkribering är normalt inte en medicinteknisk produkt. Om systemet bearbetar patientspecifik information så att det påverkar beslutsunderlaget kan det vara det, och då kan högriskkraven gälla. Det är precis vad Läkemedelsverket granskar 2026."},
+ {s:"Du klistrar in en avidentifierad men detaljerad patientberättelse i ChatGPT på din privata telefon för att formulera ett brev.",a:"Fel fråga",e:"Det här handlar inte om högriskklassning. Frågan gäller tystnadsplikt och sekretess (patientsäkerhetslagen, OSL), patientdatalagen och dataskyddsförordningen. En detaljerad berättelse kan gå att koppla till en person även utan namn."}
+];
+const OPTS=["Högrisk","Inte högrisk","Beror på","Fel fråga"];/* answers may combine options */
+document.getElementById("riskEx").innerHTML=RISK.map((r,i)=>`<div class="excard"><span class="sc">${esc(r.s)}</span><div class="opts" data-r="${i}">${OPTS.map(o=>`<button type="button" data-o="${o}">${o}</button>`).join("")}<button type="button" data-show="1" class="btn">Visa svar</button></div><div class="answer" id="ra${i}" hidden><span class="ans">${r.a}.</span> ${esc(r.e)}</div></div>`).join("");
+document.getElementById("riskEx").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const box=b.closest(".opts");const i=box.dataset.r;
+ if(b.dataset.show){document.getElementById("ra"+i).hidden=false;return;}
+ box.querySelectorAll("button[data-o]").forEach(x=>x.classList.toggle("picked",x===b));document.getElementById("ra"+i).hidden=false;});
+
+/* ---------------- SOURCE CRITICISM EXERCISE ---------------- */
+const SRC=[
+ {q:"Vem har gjort studien?",a:"Den är beställd av leverantören Tandem Health med stöd från Capio. Två av författarna är anställda på Tandem och har aktieoptioner, en är medgrundare och vd. En är anställd på Capio."},
+ {q:"Är den granskad?",a:"Nej. Den är publicerad som preprint på medRxiv, utan granskning av andra forskare."},
+ {q:"Fanns en kontrollgrupp?",a:"Nej. Det fanns ingen kontrollgrupp och ingen objektiv mätning av tiden före införandet. Tidsvinsten bygger på vad 177 användare själva uppskattade: från 6,7 till 4,7 minuter per anteckning."},
+ {q:"Vilka svarade?",a:"Analysen begränsades till dem som använt verktyget mycket, alltså troligen de mest nöjda. Författarna skriver själva att det finns risk för urvalsbias och efterlyser randomiserade studier."},
+ {q:"Vad säger annan forskning?",a:"En studie vid fem amerikanska universitetssjukhus (JAMA 2026) jämförde 1 809 kliniker som använde AI-assistent med 6 772 som inte gjorde det. Vinsten var mer blygsam: 16 minuter mindre dokumentation per åtta timmar patientarbete. Internationell jämförelse med andra system och förhållanden, men med kontrollgrupp."}
+];
+document.getElementById("srcEx").innerHTML=SRC.map((r,i)=>`<div class="excard"><div class="opts" style="justify-content:space-between;align-items:center"><span class="sc">${esc(r.q)}</span><button type="button" class="btn" data-s="${i}">Visa</button></div><div class="answer" id="sa${i}" hidden>${esc(r.a)}</div></div>`).join("");
+document.getElementById("srcEx").addEventListener("click",e=>{const b=e.target.closest("button[data-s]");if(!b)return;document.getElementById("sa"+b.dataset.s).hidden=false;b.hidden=true;});
+
+/* ---------------- CHECKLIST ---------------- */
+const CHK=[
+ ["Avsett ändamål","Vad är verktyget avsett för, och använder vi det just så?"],
+ ["CE-märkning och klass","Är det en medicinteknisk produkt? I så fall, vilken klass?"],
+ ["Lokal validering","Har det testats på våra patienter och i vårt arbetssätt?"],
+ ["Uppföljning","Mäter vi prestandan löpande, även efter uppdateringar?"],
+ ["Var data behandlas","Var lagras och bearbetas uppgifterna, och används de för leverantörens egna syften?"],
+ ["Sekretess","Finns en dokumenterad lämplighetsbedömning enligt OSL och ett biträdesavtal?"],
+ ["Ansvar","Vem bestämmer när jag och AI gör olika bedömningar?"],
+ ["Patientinformation","Vet patienten att AI används, och hur?"],
+ ["Kompetens","Har jag och mina kolleger fått utbildning i verktygets styrkor och svagheter?"],
+ ["Avvikelser","Vet jag hur fel rapporteras, internt och till Läkemedelsverket?"]
+];
+const ck=document.getElementById("checklist");let saved={};try{saved=JSON.parse(localStorage.getItem("ai-varden-check")||"{}")}catch(e){}
+ck.innerHTML=CHK.map((c,i)=>`<li><label for="ck${i}"><input type="checkbox" id="ck${i}" ${saved[i]?"checked":""}><span><b>${esc(c[0])}</b><small>${esc(c[1])}</small></span></label></li>`).join("");
+function ckProg(){const n=ck.querySelectorAll("input:checked").length;document.getElementById("checkProg").textContent=`${n} av ${CHK.length} punkter besvarade`;}
+ck.addEventListener("change",()=>{const s={};ck.querySelectorAll("input").forEach((x,i)=>{if(x.checked)s[i]=1;});try{localStorage.setItem("ai-varden-check",JSON.stringify(s))}catch(e){}ckProg();});ckProg();
+
+/* ---------------- SOURCES per slide + bibliography ---------------- */
+document.querySelectorAll(".slide[data-src]").forEach(sl=>{const ids=sl.dataset.src.split(",").filter(Boolean);if(!ids.length)return;
+ const d=document.createElement("details");d.className="src";d.innerHTML=`<summary>Källor (${ids.length})</summary><ol>${ids.map(srcItem).join("")}</ol>`;sl.appendChild(d);});
+const bib=document.getElementById("biblio");
+bib.innerHTML=ORDER_G.map(g=>{const ids=Object.keys(S).filter(k=>S[k].g===g);return `<div><h3>${G_LABEL[g]}</h3><ol>${ids.map(srcItem).join("")}</ol></div>`;}).join("")+
+ `<p class="body" style="font-size:14.5px;color:var(--muted)">Etiketter: SE Sverige, EU EU-rätt eller europeisk aktör, landskod för internationella källor. Amerikanska och brittiska studier används som internationell jämförelse eller historik, inte som underlag för vad som gäller i Sverige.</p>`;
+
+/* ---------------- LEDGER (part 4) ---------------- */
+const LEDGER=[
+ ["masai","pro","MASAI: 29 % fler upptäckta cancerfall och 44 % mindre granskningsarbete"],
+ ["screentrust","pro","ScreenTrustCAD: en radiolog med AI hittade minst lika mycket som två"],
+ ["automationsbias","con","Automationsbias: andelen rätt bland de mest erfarna sjönk från 82 till 46 % när AI hade fel"],
+ ["deskilling","con","Avkompetensering: adenomdetektion utan AI sjönk från 28,4 till 22,4 %"],
+ ["bean","con","Glappet mellan modell och användare: modellen ensam ställde rätt diagnos i 95 %, människor med modellen i under 35 %"],
+ ["titta-forst","concl","Titta själv först, AI sedan."]];
+LEDGER.forEach((row,k)=>{const sl=document.getElementById(row[0]);if(!sl)return;const upto=LEDGER.slice(0,k+1);
+ const col=t=>{const items=upto.filter(r=>r[1]===t);return items.length?items.map(r=>`<div class="it${r===row?" new":""}">${esc(r[2])}</div>`).join(""):`<div class="it empty">${t==="pro"?"Inga ännu":"Inga ännu"}</div>`;};
+ const concl=upto.find(r=>r[1]==="concl");
+ const d=document.createElement("div");d.className="ledger";d.setAttribute("aria-label","Sammanställning av fördelar och fällor");
+ d.innerHTML=`<div class="col pro"><h4>Fördelar</h4>${col("pro")}</div><div class="col con"><h4>Fällor</h4>${col("con")}</div>${concl?`<div class="concl${concl===row?" new":""}">${esc(concl[2])}</div>`:""}`;
+ sl.insertBefore(d,sl.querySelector(".src,.notes"));});
+/* ---------------- MODE + NAV ---------------- */
+const slides=[...document.querySelectorAll(".slide")];let cur=0;
+const body=document.body,modeBtn=document.getElementById("modeBtn"),notesBtn=document.getElementById("notesBtn");
+function setMode(present){body.classList.toggle("present",present);modeBtn.textContent=present?"Läsläge":"Presentera";notesBtn.hidden=!present;
+ document.querySelectorAll(".src").forEach(d=>{if(!present)d.open=true;else d.open=false;});
+ if(present){go(cur);}else{slides.forEach(s=>{s.classList.remove("active");s.style.transform="";});slides[cur].scrollIntoView({block:"start"});}
+ try{localStorage.setItem("ai-varden-mode",present?"p":"r")}catch(e){}}
+const RM=RMQ;
+function setVT(sl,on){if(!sl)return;const pairs=sl.classList.contains("part")?[]:[[".slide-head","vt-head"],[":scope > h2","vt-title"]];
+ pairs.push([".ledger","vt-ledger"]);
+ pairs.forEach(([q,n])=>{const e=sl.querySelector(q);if(e)e.style.viewTransitionName=on?n:"";});
+ sl.querySelectorAll("[data-vt]").forEach(e=>e.style.viewTransitionName=on?e.dataset.vt:"");}
+function applySlide(i,fwd){if(fwd)resetSlide(slides[i].id);cur=i;slides.forEach((s,k)=>s.classList.toggle("active",k===cur));
+ if(body.classList.contains("present"))enter(slides[cur],fwd);
+ document.getElementById("count").textContent=`${cur+1} / ${slides.length}`;document.getElementById("pbar").style.width=((cur+1)/slides.length*100)+"%";
+ if(body.classList.contains("present")){window.scrollTo(0,0);fit();}
+ updateRail();
+ try{history.replaceState(null,"","#"+slides[cur].id)}catch(e){}}
+function go(i){const t=Math.max(0,Math.min(slides.length-1,i)),prev=cur;
+ const present=body.classList.contains("present");
+ if(!present||t===prev||!document.startViewTransition||RM.matches){applySlide(t,present&&t>prev);if(present)growCharts(slides[t]);return;}
+ document.documentElement.dataset.dir=t>prev?"fwd":"back";
+ setVT(slides[prev],true);
+ const vt=document.startViewTransition(()=>{setVT(slides[prev],false);applySlide(t,t>prev);setVT(slides[t],true);});
+ vt.ready.then(()=>growCharts(slides[t])).catch(()=>{});
+ vt.finished.finally(()=>setVT(slides[t],false));}
+function growCharts(sl){sl.querySelectorAll(".chart svg").forEach(growIn);}
+/* part rail */
+const PARTS=["Historia","Nuläge","Ramverk","Forskning","Krav","Diskussion"];
+let pnum=0;slides.forEach(s=>{const m=/^del(\d)$/.exec(s.id);if(m)pnum=+m[1];s.dataset.part=pnum;});
+const rail=document.getElementById("rail");
+rail.innerHTML=PARTS.map((p,i)=>`<button type="button" data-p="${i+1}"><span class="fill"></span>${i+1} ${p}</button>`).join("");
+rail.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const k=slides.findIndex(s=>s.id==="del"+b.dataset.p);if(k>=0)go(k);});
+function updateRail(){const p=+slides[cur].dataset.part;rail.querySelectorAll("button").forEach(b=>{const n=+b.dataset.p;b.classList.toggle("cur",n===p);
+  const inPart=slides.filter(s=>+s.dataset.part===n);const idx=inPart.indexOf(slides[cur]);
+  const w=n<p?100:n>p?0:Math.round((idx+1)/inPart.length*100);b.querySelector(".fill").style.width=`calc((100% - 16px) * ${w/100})`;});}
+modeBtn.onclick=()=>setMode(!body.classList.contains("present"));
+notesBtn.onclick=()=>{const on=notesBtn.getAttribute("aria-pressed")!=="true";notesBtn.setAttribute("aria-pressed",on);body.classList.toggle("hide-notes",!on);document.querySelectorAll(".notes").forEach(n=>n.open=on);};
+body.classList.add("hide-notes");
+document.getElementById("prevBtn").onclick=()=>go(cur-1);document.getElementById("nextBtn").onclick=()=>go(cur+1);
+document.addEventListener("keydown",e=>{if(e.target.matches("textarea,input:not([type=range]):not([type=checkbox])"))return;
+ if(e.target.matches("input[type=range]")&&e.key.startsWith("Arrow"))return;
+ if((e.key==="r"||e.key==="R")&&!e.metaKey&&!e.ctrlKey){resetAll();return;}
+ if(!body.classList.contains("present")){if(e.key==="p"||e.key==="P")setMode(true);return;}
+ const st=STEPPERS[slides[cur].id];
+ if(e.key===" "){e.preventDefault();go(cur+1);}
+ else if(["ArrowRight","PageDown"].includes(e.key)){e.preventDefault();if(!(st&&st.next())&&!qStep(slides[cur],1))go(cur+1);}
+ else if(["ArrowLeft","PageUp"].includes(e.key)){e.preventDefault();if(!(st&&st.prev())&&!qStep(slides[cur],-1))go(cur-1);}
+ else if(e.key==="Home")go(0);else if(e.key==="End")go(slides.length-1);
+ else if(e.key==="Escape")setMode(false);else if(e.key==="n"||e.key==="N")notesBtn.click();});
+/* fit active slide to the screen */
+const DESIGN_W=1280;
+let fitKey="",fitScale=0;
+function fit(force){if(!body.classList.contains("present"))return;const sl=slides[cur];if(!sl)return;
+  const bar=document.querySelector(".bar").getBoundingClientRect(),nav=document.querySelector(".nav").getBoundingClientRect();
+  const top=bar.bottom+12,availH=nav.top-12-top,availW=innerWidth-32;
+  sl.style.transform="none";const h=sl.offsetHeight;
+  let sc=Math.min(availW/DESIGN_W,availH/h,1.6);
+  const key=cur+"|"+innerWidth+"x"+innerHeight;
+  if(force!==true&&key===fitKey&&fitScale&&sc>=fitScale)sc=fitScale; /* keep the scale stable while on the same slide */
+  fitKey=key;fitScale=sc;
+  const left=(innerWidth-DESIGN_W*sc)/2,y=top+Math.max(0,(availH-h*sc)/2);
+  sl.style.transform=`translate(${left}px,${y}px) scale(${sc})`;}
+addEventListener("resize",fit);document.addEventListener("fullscreenchange",()=>setTimeout(fit,60));
+const ro=new ResizeObserver(()=>fit(false));slides.forEach(s=>ro.observe(s));
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit);
+/* table of contents */
+document.getElementById("tocBtn").onclick=()=>{let t=document.getElementById("toc");if(t){t.remove();return;}
+ t=document.createElement("div");t.id="toc";t.className="toc";
+ t.innerHTML=slides.map((s,i)=>`<button type="button" class="btn" data-i="${i}">${i+1}. ${esc(s.dataset.title||s.id)}</button>`).join("");
+ t.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const i=+b.dataset.i;t.remove();if(body.classList.contains("present"))go(i);else{cur=i;slides[i].scrollIntoView({block:"start"});}});document.body.appendChild(t);};
+/* track current in read mode */
+const io=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting&&!body.classList.contains("present"))cur=slides.indexOf(en.target);});},{rootMargin:"-40% 0px -55% 0px"});slides.forEach(s=>io.observe(s));
+
+/* ---------------- NARRATIVE STEPS (arrow keys step within a slide, space jumps to next slide) ---------------- */
+function revealer(container,ansSel,btnSel){
+  const items=()=>[...document.querySelectorAll(container+" "+ansSel)];
+  return {next(){const h=items().find(a=>a.hidden);if(!h)return false;h.hidden=false;const box=h.closest(".excard,.qcard")||h.parentElement;const b=box.querySelector(btnSel);if(b&&b.dataset.s!==undefined)b.hidden=true;if(b&&b.dataset.q!==undefined)b.hidden=true;return true;},
+          reset(){items().forEach(a=>{a.hidden=true;const box=a.closest(".excard,.qcard")||a.parentElement;const b=box.querySelector(btnSel);if(b)b.hidden=false;box.querySelectorAll(".picked").forEach(x=>x.classList.remove("picked"));});},
+          prev(){const v=items().filter(a=>!a.hidden);if(!v.length)return false;const a=v[v.length-1];a.hidden=true;const box=a.closest(".excard,.qcard")||a.parentElement;const b=box.querySelector(btnSel);if(b)b.hidden=false;box.querySelectorAll(".picked").forEach(x=>x.classList.remove("picked"));return true;}};
+}
+function focusDeck(exId,label){
+  const ex=document.getElementById(exId);const cards=[...ex.children];let f=0;
+  const nav=document.createElement("div");nav.className="exnav";ex.after(nav);
+  function paint(){cards.forEach((c,i)=>c.classList.toggle("focus",i===f));
+    nav.innerHTML=`<span>${label} ${f+1} av ${cards.length}</span>`+cards.map((c,i)=>`<i class="${i===f?"on":(i<f?"done":"")}"></i>`).join("");}
+  paint();
+  return {reset(){f=0;cards.forEach(c=>{c.querySelector(".answer").hidden=true;const b=c.querySelector("button[data-s]");if(b)b.hidden=false;c.querySelectorAll(".picked").forEach(x=>x.classList.remove("picked"));});paint();},
+          next(){const a=cards[f].querySelector(".answer");if(a.hidden){a.hidden=false;const b=cards[f].querySelector("button[data-s]");if(b)b.hidden=true;return true;}
+            if(f<cards.length-1){f++;paint();return true;}return false;},
+          prev(){const a=cards[f].querySelector(".answer");if(!a.hidden){a.hidden=true;const b=cards[f].querySelector("button[data-s]");if(b)b.hidden=false;cards[f].querySelectorAll(".picked").forEach(x=>x.classList.remove("picked"));return true;}
+            if(f>0){f--;paint();return true;}return false;}};
+}
+const STEPPERS={
+  "turing":revealer("#quiz",".verdict","button[data-q]"),
+  "hogrisk":focusDeck("riskEx","Fall"),
+  "kallkritik":focusDeck("srcEx","Fråga"),
+  "scb-anv":{next(){if(revealed)return false;setReveal(true);return true;},prev(){if(!revealed)return false;setReveal(false);return true;},reset(){yr="2026";document.querySelectorAll("#yrSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v==="2026"?"true":"false"));gR.value=20;gO.textContent="20 %";setReveal(false);}},
+  "fall-1177":{next(){if(stepI>=STEPS.length-1)return false;stepI++;drawStep();return true;},prev(){if(stepI<=0)return false;stepI--;drawStep();return true;},reset(){stepI=0;drawStep();}}
+};
+/* ---------------- MOTION: part openers, entry choreography, count-up, question spotlight ---------------- */
+const ECG_PTS="0,40 120,40 140,36 155,40 180,40 192,46 202,4 214,56 224,40 270,40 290,32 312,40 470,40 490,36 505,40 530,40 542,46 552,4 564,56 574,40 620,40 640,32 662,40 820,40 840,36 855,40 880,40 892,46 902,4 914,56 924,40 970,40 990,32 1000,40";
+document.querySelectorAll(".slide.part").forEach(sl=>{const n=(sl.querySelector(".partno")||{}).textContent||"";const m=/(\d)/.exec(n);
+  sl.insertAdjacentHTML("afterbegin",`<svg class="ecg ecgdraw" viewBox="0 0 1000 60" preserveAspectRatio="none" aria-hidden="true"><polyline pathLength="1" fill="none" stroke="currentColor" stroke-width="2.5" points="${ECG_PTS}"/></svg>${m?`<div class="bignum" aria-hidden="true">${m[1]}</div>`:""}`);});
+function countBig(sl){if(RMQ.matches)return;sl.querySelectorAll(".big").forEach(b=>{if(!b.dataset.final)b.dataset.final=b.textContent;const f=b.dataset.final;const m=/(\d+)(,(\d+))?/.exec(f);if(!m)return;
+  const target=parseFloat(m[1]+"."+(m[3]||"0")),dec=m[3]?m[3].length:0,pre=f.slice(0,m.index),post=f.slice(m.index+m[0].length);const t0=performance.now()+350;
+  const step=now=>{const k=Math.min(1,Math.max(0,(now-t0)/1100)),e=1-Math.pow(1-k,3);b.textContent=pre+(target*e).toFixed(dec).replace(".",",")+post;if(k<1)requestAnimationFrame(step);else b.textContent=f;};requestAnimationFrame(step);});}
+document.querySelectorAll(".slide:not(#agenda) .questions").forEach(q=>q.classList.add("stepq"));
+function qSet(sl,k){const q=sl.querySelector(".questions.stepq");if(!q)return;const li=[...q.children];k=Math.max(0,Math.min(li.length-1,k));q.dataset.k=k;
+  li.forEach((x,i)=>{x.classList.toggle("past",i<k);x.classList.toggle("now",i===k);x.classList.toggle("future",i>k);});}
+function qStep(sl,d){const q=sl.querySelector(".questions.stepq");if(!q)return false;const n=q.children.length,k=+q.dataset.k||0;const t=k+d;if(t<0||t>=n)return false;qSet(sl,t);return true;}
+document.querySelectorAll(".slide").forEach(sl=>{const q=sl.querySelector(".questions.stepq");if(q)qSet(sl,q.children.length-1);});
+function enter(sl,fwd){[...sl.children].forEach((c,i)=>c.style.setProperty("--i",i));
+  [".tl li:not([hidden])",".stat",".quiz .qcard",".cols>*",".themes span"].forEach(sel=>sl.querySelectorAll(sel).forEach((x,i)=>x.style.setProperty("--r",i)));
+  const q=sl.querySelector(".questions.stepq");if(q)qSet(sl,fwd?0:q.children.length-1);
+  sl.classList.remove("entering");void sl.offsetWidth;sl.classList.add("entering");countBig(sl);}
+/* read mode: animate charts and numbers when they scroll into view */
+const seenIO=new IntersectionObserver(es=>es.forEach(en=>{if(!en.isIntersecting||body.classList.contains("present"))return;const t=en.target;seenIO.unobserve(t);
+  if(t.classList.contains("chart"))play(t.querySelector("svg"));else countBig(t);}),{threshold:.35});
+document.querySelectorAll(".chart,.slide:has(.big)").forEach(x=>seenIO.observe(x));
+/* ---------------- RESET ---------------- */
+function resetSlide(id){const st=STEPPERS[id];if(st&&st.reset)st.reset();}
+function resetAll(){if(document.activeElement&&document.activeElement!==document.body)document.activeElement.blur();Object.keys(STEPPERS).forEach(resetSlide);if(body.classList.contains("present"))fit(true);}
+document.getElementById("resetBtn").onclick=()=>{resetAll();const b=document.getElementById("resetBtn");b.textContent="Återställd";setTimeout(()=>b.textContent="Återställ",1500);};
+/* ---------------- MOTION TOGGLE ---------------- */
+const motionBtn=document.getElementById("motionBtn");
+function setMotion(on){document.documentElement.classList.toggle("calm",!on);motionBtn.setAttribute("aria-pressed",on?"true":"false");motionBtn.textContent=on?"Animationer på":"Animationer av";try{localStorage.setItem("ai-varden-motion",on?"on":"off")}catch(e){}}
+motionBtn.onclick=()=>setMotion(document.documentElement.classList.contains("calm"));
+{let m="on";try{m=localStorage.getItem("ai-varden-motion")||"on"}catch(e){}setMotion(m!=="off");}
+/* ---------------- THEME + FULLSCREEN ---------------- */
+const themeSeg=document.getElementById("themeSeg");
+function applyTheme(t){if(t)document.documentElement.setAttribute("data-theme",t);
+  const eff=t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
+  themeSeg.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===eff?"true":"false"));
+  drawAll();}
+themeSeg.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;try{localStorage.setItem("ai-varden-theme",b.dataset.v)}catch(err){}applyTheme(b.dataset.v);});
+const fsBtn=document.getElementById("fsBtn");
+fsBtn.onclick=async()=>{try{if(document.fullscreenElement){await document.exitFullscreen();}else{await document.documentElement.requestFullscreen();if(!body.classList.contains("present"))setMode(true);}}catch(err){fsBtn.textContent="Helskärm stöds inte här";setTimeout(()=>fsBtn.textContent="Helskärm",2500);}};
+document.addEventListener("fullscreenchange",()=>{fsBtn.textContent=document.fullscreenElement?"Avsluta helskärm":"Helskärm";});
+/* ---------------- INIT ---------------- */
+function drawAll(){drawAge();drawEU();drawHealth();drawAct();drawResearch();}
+drawStep();
+let savedTheme=null;try{savedTheme=localStorage.getItem("ai-varden-theme")}catch(e){}
+applyTheme(savedTheme);
+const h=location.hash.slice(1);const hi=slides.findIndex(s=>s.id===h);if(hi>=0)cur=hi;
+let m="r";try{m=localStorage.getItem("ai-varden-mode")||"r"}catch(e){}
+setMode(m==="p");
+</script>
+
+</body>
+</html>
